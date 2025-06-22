@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="css/app.css" />
+    <title>四季のウェディングプランナー</title>
+  </head>
+  <body>
+    <div class="landing-container">
+      <a href="index.html" class="app-launcher">
+        <div class="icon-container">
+          <!-- 回転する背景部分 -->
+          <svg
+            class="background"
+            viewBox="0 0 300 300"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <!-- 背景グラデーション定義 -->
+            <defs>
+              <lineargradient
+                id="springGradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stop-color="#f8e1ea" />
+                <stop offset="100%" stop-color="#ffccd5" />
+              </lineargradient>
+              <lineargradient
+                id="summerGradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stop-color="#a2d2ff" />
+                <stop offset="100%" stop-color="#90e0ef" />
+              </lineargradient>
+              <lineargradient
+                id="autumnGradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stop-color="#ffb347" />
+                <stop offset="100%" stop-color="#e85d04" />
+              </lineargradient>
+              <lineargradient
+                id="winterGradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stop-color="#e1eef8" />
+                <stop offset="100%" stop-color="#a0c4ff" />
+              </lineargradient>
+              <!-- 模様用のパターン定義 -->
+              <pattern
+                id="cherryBlossom"
+                patternUnits="userSpaceOnUse"
+                width="40"
+                height="40"
+                patternTransform="rotate(10)"
+              >
+                <circle cx="20" cy="20" r="5" fill="#ffb7c5" opacity="0.6" />
+                <circle cx="22" cy="18" r="2" fill="#ff8fab" opacity="0.7" />
+                <circle cx="18" cy="22" r="2" fill="#ff8fab" opacity="0.7" />
+                <circle cx="18" cy="18" r="2" fill="#ff8fab" opacity="0.7" />
+                <circle cx="22" cy="22" r="2" fill="#ff8fab" opacity="0.7" />
+              </pattern>
+              <pattern
+                id="summerLeaves"
+                patternUnits="userSpaceOnUse"
+                width="50"
+                height="50"
+                patternTransform="rotate(45)"
+              >
+                <path
+                  d="M10,25 Q25,10 40,25 Q25,40 10,25 Z"
+                  fill="#57cc99"
+                  opacity="0.5"
+                />
+                <path
+                  d="M25,10 Q40,25 25,40 Q10,25 25,10 Z"
+                  fill="#57cc99"
+                  opacity="0.4"
+                />
+              </pattern>
+              <pattern
+                id="autumnLeaves"
+                patternUnits="userSpaceOnUse"
+                width="40"
+                height="40"
+                patternTransform="rotate(-10)"
+              >
+                <path
+                  d="M20,10 L25,20 L20,30 L15,20 Z"
+                  fill="#dc2f02"
+                  opacity="0.5"
+                />
+                <path
+                  d="M30,15 L35,20 L30,25 L25,20 Z"
+                  fill="#e85d04"
+                  opacity="0.4"
+                />
+                <path
+                  d="M10,15 L15,20 L10,25 L5,20 Z"
+                  fill="#dc2f02"
+                  opacity="0.4"
+                />
+              </pattern>
+              <pattern
+                id="snowflakes"
+                patternUnits="userSpaceOnUse"
+                width="50"
+                height="50"
+                patternTransform="rotate(0)"
+              >
+                <path
+                  d="M25,20 L30,25 L25,30 L20,25 Z"
+                  fill="white"
+                  opacity="0.7"
+                />
+                <path
+                  d="M25,20 L25,10 M25,30 L25,40 M20,25 L10,25 M30,25 L40,25 M22,22 L15,15 M28,28 L35,35 M22,28 L15,35 M28,22 L35,15"
+                  stroke="white"
+                  stroke-width="1"
+                  opacity="0.6"
+                />
+                <circle cx="10" cy="10" r="2" fill="white" opacity="0.7" />
+                <circle cx="40" cy="40" r="2" fill="white" opacity="0.7" />
+                <circle cx="40" cy="15" r="1.5" fill="white" opacity="0.5" />
+                <circle cx="15" cy="40" r="1.5" fill="white" opacity="0.5" />
+              </pattern>
+            </defs>
+
+            <!-- 四季を表現する背景（4分割） -->
+            <!-- 春：桜模様入りピンク系 -->
+            <path
+              d="M150,5 A145,145 0 0,1 295,150 L150,150 Z"
+              fill="url(#springGradient)"
+            />
+            <path
+              d="M150,5 A145,145 0 0,1 295,150 L150,150 Z"
+              fill="url(#cherryBlossom)"
+            />
+
+            <!-- 夏：緑の葉模様入り青系 -->
+            <path
+              d="M295,150 A145,145 0 0,1 150,295 L150,150 Z"
+              fill="url(#summerGradient)"
+            />
+            <path
+              d="M295,150 A145,145 0 0,1 150,295 L150,150 Z"
+              fill="url(#summerLeaves)"
+            />
+
+            <!-- 秋：紅葉模様入りオレンジ系 -->
+            <path
+              d="M150,295 A145,145 0 0,1 5,150 L150,150 Z"
+              fill="url(#autumnGradient)"
+            />
+            <path
+              d="M150,295 A145,145 0 0,1 5,150 L150,150 Z"
+              fill="url(#autumnLeaves)"
+            />
+
+            <!-- 冬：雪の結晶模様入り水色系 -->
+            <path
+              d="M5,150 A145,145 0 0,1 150,5 L150,150 Z"
+              fill="url(#winterGradient)"
+            />
+            <path
+              d="M5,150 A145,145 0 0,1 150,5 L150,150 Z"
+              fill="url(#snowflakes)"
+            />
+
+            <!-- 円形の境界線 -->
+            <circle
+              cx="150"
+              cy="150"
+              r="145"
+              fill="none"
+              stroke="#d4af37"
+              stroke-width="3"
+            />
+          </svg>
+
+          <!-- 固定する前景部分 -->
+          <svg
+            class="foreground"
+            viewBox="0 0 300 300"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <lineargradient
+                id="ringGradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <stop offset="0%" stop-color="#d4af37" />
+                <stop offset="50%" stop-color="#f9e7a5" />
+                <stop offset="100%" stop-color="#d4af37" />
+              </lineargradient>
+            </defs>
+
+            <!-- 中央の白い円 -->
+            <circle cx="150" cy="150" r="140" fill="white" fill-opacity="0.7" />
+
+            <!-- デザイン要素：結婚指輪とダイヤモンド -->
+            <g
+              transform="translate(150, 150) scale(0.85) translate(-150, -150)"
+            >
+              <!-- リング -->
+              <ellipse
+                cx="150"
+                cy="125"
+                rx="60"
+                ry="18"
+                fill="none"
+                stroke="url(#ringGradient)"
+                stroke-width="5"
+                transform="rotate(-15, 150, 125)"
+              />
+              <ellipse
+                cx="150"
+                cy="125"
+                rx="60"
+                ry="18"
+                fill="none"
+                stroke="url(#ringGradient)"
+                stroke-width="5"
+                transform="rotate(75, 150, 125)"
+              />
+
+              <!-- ダイヤモンド -->
+              <polygon
+                points="150,95 160,108 150,120 140,108"
+                fill="white"
+                stroke="#d4af37"
+                stroke-width="1.5"
+                filter="drop-shadow(0px 0px 3px rgba(212, 175, 55, 0.8))"
+              />
+            </g>
+
+            <!-- サブ要素を六角形配置 -->
+            <!-- 1. スケジュール（上） -->
+            <g transform="translate(150, 70)">
+              <circle cx="0" cy="0" r="22" fill="#ff7bac" fill-opacity="0.9" />
+              <rect
+                x="-13"
+                y="-10"
+                width="26"
+                height="25"
+                rx="2"
+                fill="white"
+                stroke="#ff7bac"
+                stroke-width="1"
+              />
+              <rect
+                x="-13"
+                y="-10"
+                width="26"
+                height="5"
+                rx="2"
+                fill="#ff7bac"
+              />
+              <line
+                x1="-13"
+                y1="0"
+                x2="13"
+                y2="0"
+                stroke="black"
+                stroke-width="1"
+              />
+              <line
+                x1="-13"
+                y1="5"
+                x2="13"
+                y2="5"
+                stroke="black"
+                stroke-width="1"
+              />
+              <line
+                x1="-13"
+                y1="10"
+                x2="13"
+                y2="10"
+                stroke="black"
+                stroke-width="1"
+              />
+              <line
+                x1="-5"
+                y1="-5"
+                x2="-5"
+                y2="15"
+                stroke="black"
+                stroke-width="1"
+              />
+              <line
+                x1="3"
+                y1="-5"
+                x2="3"
+                y2="15"
+                stroke="black"
+                stroke-width="1"
+              />
+              <circle cx="-1" cy="7.5" r="2" fill="black" />
+            </g>
+
+            <!-- 2. タスク（右上） -->
+            <g transform="translate(220, 100)">
+              <circle cx="0" cy="0" r="22" fill="#4caf50" fill-opacity="0.9" />
+              <rect
+                x="-13"
+                y="-10"
+                width="26"
+                height="25"
+                rx="2"
+                fill="white"
+                stroke="#4caf50"
+                stroke-width="1"
+              />
+              <rect
+                x="-10"
+                y="-5"
+                width="6"
+                height="6"
+                rx="1"
+                fill="white"
+                stroke="#4caf50"
+                stroke-width="1"
+              />
+              <line
+                x1="0"
+                y1="-2"
+                x2="10"
+                y2="-2"
+                stroke="#4caf50"
+                stroke-width="1"
+              />
+              <rect x="-10" y="5" width="6" height="6" rx="1" fill="#4caf50" />
+              <line
+                x1="0"
+                y1="8"
+                x2="10"
+                y2="8"
+                stroke="#4caf50"
+                stroke-width="1"
+              />
+              <path
+                d="M-8,5 L-6,9 L-4,3"
+                fill="none"
+                stroke="white"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </g>
+
+            <!-- 3. ベンダー（右下） -->
+            <g transform="translate(220, 200)">
+              <circle cx="0" cy="0" r="22" fill="#3b7ab3" fill-opacity="0.9" />
+              <path
+                d="M-13,10 L-13,-5 L13,-5 L13,10"
+                fill="none"
+                stroke="white"
+                stroke-width="1.5"
+              />
+              <path
+                d="M-15,-5 L0,-15 L15,-5"
+                fill="none"
+                stroke="white"
+                stroke-width="1.5"
+              />
+              <rect x="-2" y="2" width="4" height="8" fill="white" />
+              <rect
+                x="-10"
+                y="0"
+                width="5"
+                height="5"
+                fill="none"
+                stroke="white"
+                stroke-width="1"
+              />
+              <rect
+                x="5"
+                y="0"
+                width="5"
+                height="5"
+                fill="none"
+                stroke="white"
+                stroke-width="1"
+              />
+            </g>
+
+            <!-- 4. カスタマー（下） -->
+            <g transform="translate(150, 230)">
+              <circle cx="0" cy="0" r="22" fill="#e3a952" fill-opacity="0.9" />
+              <circle cx="-8" cy="-5" r="6" fill="white" />
+              <path
+                d="M-8,1 C-11,6 -13,12 -13,17 L-3,17 C-3,12 -5,6 -8,1"
+                fill="white"
+              />
+              <circle cx="8" cy="-5" r="6" fill="white" />
+              <rect x="5" y="1" width="6" height="16" fill="white" />
+              <path
+                d="M0,7 C2,4 6,4 8,7 C10,10 7,13 4,15 C1,13 -2,10 0,7"
+                fill="#d35f5f"
+                transform="scale(0.8) translate(0, -3)"
+              />
+            </g>
+
+            <!-- 5. 予算管理（左下） -->
+            <g transform="translate(80, 200)">
+              <circle cx="0" cy="0" r="22" fill="#8e44ad" fill-opacity="0.9" />
+              <rect
+                x="-10"
+                y="-15"
+                width="20"
+                height="25"
+                rx="2"
+                fill="white"
+                stroke="#8e44ad"
+                stroke-width="1"
+              />
+              <line
+                x1="-5"
+                y1="-10"
+                x2="5"
+                y2="-10"
+                stroke="#8e44ad"
+                stroke-width="1"
+              />
+              <line
+                x1="-5"
+                y1="-5"
+                x2="5"
+                y2="-5"
+                stroke="#8e44ad"
+                stroke-width="1"
+              />
+              <line
+                x1="-5"
+                y1="0"
+                x2="5"
+                y2="0"
+                stroke="#8e44ad"
+                stroke-width="1"
+              />
+              <text
+                x="0"
+                y="9"
+                font-family="Arial"
+                font-size="12"
+                text-anchor="middle"
+                fill="white"
+              >
+                ¥
+              </text>
+            </g>
+
+            <!-- 6. メモ（左上） -->
+            <g transform="translate(80, 100)">
+              <circle cx="0" cy="0" r="22" fill="#9b59b6" fill-opacity="0.9" />
+              <rect
+                x="-10"
+                y="-12"
+                width="15"
+                height="20"
+                rx="2"
+                fill="white"
+                stroke="#9b59b6"
+                stroke-width="1"
+              />
+              <line
+                x1="-6"
+                y1="-6"
+                x2="6"
+                y2="-6"
+                stroke="#9b59b6"
+                stroke-width="0.8"
+              />
+              <line
+                x1="-6"
+                y1="-1"
+                x2="6"
+                y2="-1"
+                stroke="#9b59b6"
+                stroke-width="0.8"
+              />
+              <line
+                x1="-6"
+                y1="4"
+                x2="6"
+                y2="4"
+                stroke="#9b59b6"
+                stroke-width="0.8"
+              />
+              <path d="M8,-12 L13,-7 L10,-4 L5,-9 Z" fill="#9b59b6" />
+            </g>
+
+            <!-- ブランド名: V/W/P/A -->
+            <text
+              x="150"
+              y="155"
+              font-family="Arial, sans-serif"
+              font-size="28"
+              font-weight="bold"
+              text-anchor="middle"
+              fill="#333333"
+            >
+              V/W/P/A
+            </text>
+
+            <!-- 季節を示す小さなアイコン -->
+            <!-- 春：桜のアイコン -->
+            <g transform="translate(222, 62) scale(0.5)">
+              <circle cx="0" cy="0" r="8" fill="#ffb7c5" />
+              <circle cx="0" cy="0" r="3" fill="#ff8fab" />
+              <path
+                d="M0,0 L8,-5 M0,0 L5,-8 M0,0 L-5,-8 M0,0 L-8,-5 M0,0 L-8,5 M0,0 L-5,8 M0,0 L5,8 M0,0 L8,5"
+                stroke="#ff8fab"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </g>
+
+            <!-- 夏：太陽のアイコン -->
+            <g transform="translate(240, 222) scale(0.5)">
+              <circle cx="0" cy="0" r="8" fill="#ffdd00" />
+              <path
+                d="M0,-12 L0,-9 M8.5,-8.5 L6.4,-6.4 M12,0 L9,0 M8.5,8.5 L6.4,6.4 M0,12 L0,9 M-8.5,8.5 L-6.4,6.4 M-12,0 L-9,0 M-8.5,-8.5 L-6.4,-6.4"
+                stroke="#ffdd00"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </g>
+
+            <!-- 秋：紅葉のアイコン -->
+            <g transform="translate(78, 222) scale(0.5)">
+              <path
+                d="M0,-8 L2,-1 L8,-3 L5,2 L8,7 L2,5 L0,10 L-2,5 L-8,7 L-5,2 L-8,-3 L-2,-1 Z"
+                fill="#e85d04"
+              />
+              <path d="M0,-8 L0,10" stroke="#7f4f24" stroke-width="1" />
+            </g>
+
+            <!-- 冬：雪の結晶のアイコン -->
+            <g transform="translate(62, 78) scale(0.5)">
+              <path
+                d="M0,-8 L0,8 M-7,-4 L7,4 M-7,4 L7,-4"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <path
+                d="M-4,-7 L-6,-3 M4,-7 L6,-3 M-4,7 L-6,3 M4,7 L6,3 M-7,-4 L-3,-6 M7,-4 L3,-6 M-7,4 L-3,6 M7,4 L3,6"
+                stroke="white"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <circle cx="0" cy="0" r="2" fill="white" />
+            </g>
+          </svg>
+        </div>
+      </a>
+    </div>
+
+    <script src="js/script.js"></script>
+  </body>
+</html>

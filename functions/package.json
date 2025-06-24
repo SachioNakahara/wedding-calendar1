@@ -1,0 +1,45 @@
+{
+  "name": "functions",
+  "version": "1.0.0",
+  "description": "Cloud Functions for Firebase",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "setup": "npm install",
+    "build": "echo \"No build step required\"",
+    "lint": "eslint .",
+    "debug": "node --inspect index.js"
+  },
+  "keywords": [
+    "firebase",
+    "functions",
+    "wedding",
+    "calendar",
+    "google-calendar",
+    "api",
+    "oauth2"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "firebase-functions": "^6.3.2",
+    "googleapis": "^126.0.1",
+    "helmet": "^7.0.0",
+    "moment": "^2.29.4",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.52.0",
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": "20",
+    "npm": ">=8.0.0"
+  }
+}

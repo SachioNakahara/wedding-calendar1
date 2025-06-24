@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ウエディングカレンダー</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@latest/main.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@latest/main.min.css"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/sidebar.css" />
+    <link rel="stylesheet" href="css/forms.css" />
+    <link rel="stylesheet" href="css/rokuyo.css" />
+
+    <!-- Google Calendar連携用スタイル -->
+    <style>
+      .google-integration-section {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin: 20px;
+        padding: 20px;
+      }
+
+      .google-integration-header {
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+      }
+
+      .google-integration-header h2 {
+        color: #4285f4;
+        margin: 0;
+        font-size: 1.5rem;
+      }
+
+      .google-integration-header i {
+        color: #4285f4;
+        font-size: 1.8rem;
+        margin-right: 10px;
+      }
+
+      .google-auth-container {
+        background-color: #f9f9f9;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+      }
+
+      .google-user {
+        display: flex;
+        align-items: center;
+        margin-top: 10px;
+      }
+
+      .google-user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin-right: 10px;
+      }
+
+      .google-user-details {
+        font-size: 0.9rem;
+      }
+
+      .google-user-name {
+        font-weight: bold;
+      }
+
+      .google-user-email {
+        color: #666;
+        font-size: 0.8rem;
+      }
+
+      .google-button {
+        background-color: #fff;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        color: #3c4043;
+        cursor: pointer;
+        font-family: "Google Sans", Roboto, Arial, sans-serif;
+        font-size: 0.9rem;
+        font-weight: 500;
+        height: 36px;
+        letter-spacing: 0.25px;
+        padding: 0 16px;
+        transition: all 0.2s;
+      }
+
+      .google-button:hover {
+        background-color: #f6fafe;
+        border-color: #d2e3fc;
+      }
+
+      .google-button.primary {
+        background-color: #4285f4;
+        border-color: #4285f4;
+        color: #fff;
+      }
+
+      .google-button.primary:hover {
+        background-color: #3367d6;
+        border-color: #3367d6;
+      }
+
+      .google-button.danger {
+        background-color: #fff;
+        border-color: #dadce0;
+        color: #d93025;
+      }
+
+      .google-button.danger:hover {
+        background-color: #fcc;
+        border-color: #fcc;
+      }
+
+      .sync-options {
+        margin-top: 20px;
+      }
+
+      .sync-direction-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .sync-direction-option {
+        background-color: #f1f3f4;
+        border-radius: 4px;
+        cursor: pointer;
+        flex: 1;
+        min-width: 150px;
+        padding: 10px;
+        text-align: center;
+        transition: all 0.2s;
+      }
+
+      .sync-direction-option:hover {
+        background-color: #e8f0fe;
+      }
+
+      .sync-direction-option input {
+        margin-right: 5px;
+      }
+
+      .sync-progress-container {
+        background-color: #f1f3f4;
+        border-radius: 4px;
+        height: 8px;
+        margin: 15px 0;
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .sync-progress-bar {
+        background-color: #4285f4;
+        height: 100%;
+        transition: width 0.3s;
+        width: 0;
+      }
+
+      .sync-status {
+        color: #5f6368;
+        font-size: 0.9rem;
+        margin-top: 5px;
+        text-align: center;
+      }
+
+      .auto-sync-options {
+        border-top: 1px solid #eee;
+        margin-top: 20px;
+        padding-top: 20px;
+      }
+
+      .auto-sync-toggle {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+      }
+
+      .auto-sync-interval {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .auto-sync-interval select {
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        padding: 5px;
+      }
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 24px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #4285f4;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(26px);
+      }
+
+      .google-error {
+        background-color: #fce8e6;
+        border-left: 4px solid #d93025;
+        border-radius: 4px;
+        color: #d93025;
+        margin-top: 10px;
+        padding: 10px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="layout-container">
+      <div class="sidebar">
+        <div class="sidebar-header">Wedding Calendar</div>
+        <div class="sidebar-search">
+          <input
+            type="text"
+            class="search-input"
+            placeholder="スケジュールを検索"
+          />
+        </div>
+        <ul class="sidebar-menu">
+          <li class="active" id="schedule-menu-item">
+            <i class="fas fa-calendar"></i> スケジュール
+          </li>
+          <li id="integration-menu-item"><i class="fas fa-link"></i> 連携</li>
+
+          <li>
+            <a href="app.html" style="color: inherit; text-decoration: none"
+              ><i class="fas fa-home"></i> ホームに戻る</a
+            >
+          </li>
+        </ul>
+      </div>
+
+      <main class="main-content">
+        <div class="content-section active" id="schedule">
+          <div class="calendar-container" id="calendar"></div>
+        </div>
+
+        <!-- Google Calendar連携セクション -->
+        <div class="content-section" id="integration">
+          <div class="google-integration-section">
+            <div class="google-integration-header">
+              <i class="fab fa-google"></i>
+              <h2>Google Calendar連携</h2>
+            </div>
+
+            <div class="google-auth-container">
+              <h3>アカウント連携状況</h3>
+              <p id="google-auth-status">Google アカウントと連携していません</p>
+              <div id="google-user-info"></div>
+              <button
+                id="google-authorize-button"
+                class="google-button primary"
+              >
+                <i class="fab fa-google"></i> Googleアカウントと連携する
+              </button>
+              <button
+                id="google-signout-button"
+                class="google-button danger"
+                style="display: none"
+              >
+                <i class="fas fa-sign-out-alt"></i> 連携を解除する
+              </button>
+            </div>
+
+            <div class="sync-options">
+              <h3>同期設定</h3>
+              <p>カレンダーの同期方向を選択してください：</p>
+              <div class="sync-direction-options">
+                <p class="sync-option-description">
+                  <i class="fas fa-exchange-alt"></i>
+                  <strong>双方向同期:</strong> このアプリのカレンダーとGoogle
+                  Calendarを同期して最新の状態に保ちます。
+                </p>
+              </div>
+
+              <button
+                id="google-sync-button"
+                class="google-button primary"
+                disabled
+              >
+                <i class="fas fa-sync-alt"></i> 今すぐ同期する
+              </button>
+
+              <div class="sync-progress-container">
+                <div id="sync-progress" class="sync-progress-bar"></div>
+              </div>
+              <p id="sync-status" class="sync-status">まだ同期していません</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="add-new" id="add-button">+</div>
+
+    <div class="modal" id="event-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">イベント詳細</div>
+          <button class="modal-close">&times;</button>
+        </div>
+        <form id="event-form"></form>
+      </div>
+    </div>
+
+    <div class="modal" id="enhanced-event-modal">
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <div class="modal-title">新規イベント</div>
+          <button class="modal-close">&times;</button>
+        </div>
+        <form id="enhanced-event-form">
+          <div class="form-section">
+            <div class="form-group">
+              <label for="enhanced-event-title"
+                >タイトル<span class="required">*</span></label
+              >
+              <input type="text" id="enhanced-event-title" required />
+            </div>
+
+            <!-- タイトルの色設定を追加 -->
+            <div class="form-group">
+              <label for="enhanced-event-title-color">タイトルカラー</label>
+              <input
+                type="color"
+                id="enhanced-event-title-color"
+                value="#000000"
+              />
+            </div>
+
+            <!-- 優先度チェックボックスを4つの選択肢に変更 -->
+            <div class="form-group">
+              <label>進捗状況</label>
+              <div class="checkbox-group">
+                <div class="form-check">
+                  <input
+                    type="radio"
+                    name="priority"
+                    id="priority-in-progress"
+                    value="in-progress"
+                    class="form-check-input"
+                  />
+                  <label for="priority-in-progress" class="form-check-label"
+                    >進行中</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    type="radio"
+                    name="priority"
+                    id="priority-highest"
+                    value="highest"
+                    class="form-check-input"
+                  />
+                  <label for="priority-highest" class="form-check-label"
+                    >最優先</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    type="radio"
+                    name="priority"
+                    id="priority-high"
+                    value="high"
+                    class="form-check-input"
+                  />
+                  <label for="priority-high" class="form-check-label"
+                    >優先</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    type="radio"
+                    name="priority"
+                    id="priority-not-started"
+                    value="not-started"
+                    class="form-check-input"
+                  />
+                  <label for="priority-not-started" class="form-check-label"
+                    >未着手</label
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- 背景色設定 -->
+            <div class="form-group">
+              <label for="enhanced-event-custom-color">背景色</label>
+              <div class="custom-color-container">
+                <input
+                  type="color"
+                  id="enhanced-event-custom-color"
+                  value="#7fb9e8"
+                />
+                <div class="form-check">
+                  <input type="checkbox" id="use-custom-background-color" />
+                  <label for="use-custom-background-color"
+                    >カスタム背景色を使用する</label
+                  >
+                </div>
+              </div>
+              <small class="form-text text-muted"
+                >チェックがない場合、背景色は「進捗状況」に応じて自動設定されます。</small
+              >
+            </div>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="enhanced-event-date"
+                  >日付<span class="required">*</span></label
+                >
+                <input type="date" id="enhanced-event-date" required />
+              </div>
+              <div class="form-group half">
+                <label for="enhanced-event-time"
+                  >時間<span class="required">*</span></label
+                >
+                <input type="time" id="enhanced-event-time" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="enhanced-event-duration">所要時間（分）</label>
+              <input
+                type="number"
+                id="enhanced-event-duration"
+                value="60"
+                min="15"
+                step="15"
+              />
+            </div>
+
+            <div class="form-group">
+              <input type="checkbox" id="enhanced-event-allday" />
+              <label for="enhanced-event-allday">終日</label>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-group">
+              <label for="enhanced-event-description">詳細メモ</label>
+              <textarea
+                id="enhanced-event-description"
+                rows="5"
+                placeholder="イベントの詳細を入力してください"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- 画像アップロード機能 -->
+          <div class="form-section">
+            <div class="form-group">
+              <label for="file-input">関連画像</label>
+              <div class="file-upload-container">
+                <button type="button" class="btn btn-secondary upload-btn">
+                  <i class="fas fa-upload"></i> 画像をアップロード
+                </button>
+                <input
+                  type="file"
+                  id="file-input"
+                  accept="image/*"
+                  multiple
+                  style="display: none"
+                />
+              </div>
+              <div id="image-container" class="image-preview-container"></div>
+              <small class="form-text text-muted"
+                >会場やドレス、ヘアスタイルなどの参考画像をアップロードできます</small
+              >
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-group">
+              <label for="enhanced-event-category">カテゴリ</label>
+              <select id="enhanced-event-category" class="form-control">
+                <option value="">カテゴリを選択</option>
+                <option value="meeting">打ち合わせ</option>
+                <option value="vendor">ベンダー訪問</option>
+                <option value="venue">会場見学</option>
+                <option value="rehearsal">リハーサル</option>
+                <option value="ceremony">挙式関連</option>
+                <option value="other">その他</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="enhanced-event-tags">タグ</label>
+              <input
+                type="text"
+                id="enhanced-event-tags"
+                placeholder="カンマ区切りで入力（例：打合せ,電話,要確認）"
+              />
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-row">
+              <div class="form-group half">
+                <label for="enhanced-event-reminder">リマインダー</label>
+                <select id="enhanced-event-reminder" class="form-control">
+                  <option value="">リマインダーなし</option>
+                  <option value="43200">1ヶ月前</option>
+                  <option value="30240">3週間前</option>
+                  <option value="20160">2週間前</option>
+                  <option value="10080">1週間前</option>
+                  <option value="1440">1日前</option>
+                </select>
+              </div>
+              <div class="form-group half">
+                <label for="enhanced-event-status">ステータス</label>
+                <select id="enhanced-event-status" class="form-control">
+                  <option value="confirmed">確定</option>
+                  <option value="tentative">仮予約</option>
+                  <option value="cancelled">キャンセル</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              id="enhanced-event-delete"
+              class="btn btn-danger"
+            >
+              削除
+            </button>
+            <button
+              type="button"
+              id="save-enhanced-event"
+              class="btn btn-primary"
+            >
+              保存
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 拡張イベント詳細表示用モーダル -->
+    <div class="modal" id="enhanced-event-details-modal">
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <div class="modal-title">拡張イベント詳細</div>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- 詳細内容はJavaScriptで動的に生成 -->
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // サイドバーのメニュー項目クリックイベント
+        const scheduleMenuItem = document.getElementById("schedule-menu-item");
+        const integrationMenuItem = document.getElementById(
+          "integration-menu-item"
+        );
+        const scheduleSection = document.getElementById("schedule");
+        const integrationSection = document.getElementById("integration");
+        const sidebarMenuItems = document.querySelectorAll(".sidebar-menu li");
+        const contentSections = document.querySelectorAll(".content-section");
+
+        if (integrationMenuItem) {
+          integrationMenuItem.addEventListener("click", function () {
+            // アクティブなセクションを切り替え
+            document
+              .querySelectorAll(".sidebar-menu li")
+              .forEach((item) => item.classList.remove("active"));
+            integrationMenuItem.classList.add("active");
+
+            // コンテンツセクションの表示切り替え
+            document
+              .querySelectorAll(".content-section")
+              .forEach((section) => section.classList.remove("active"));
+            integrationSection.classList.add("active");
+          });
+        }
+
+        if (scheduleMenuItem) {
+          scheduleMenuItem.addEventListener("click", function () {
+            // アクティブなセクションを切り替え
+            document
+              .querySelectorAll(".sidebar-menu li")
+              .forEach((item) => item.classList.remove("active"));
+            scheduleMenuItem.classList.add("active");
+
+            // コンテンツセクションの表示切り替え
+            document
+              .querySelectorAll(".content-section")
+              .forEach((section) => section.classList.remove("active"));
+            scheduleSection.classList.add("active");
+          });
+        }
+
+        // Google Calendar連携インスタンス化
+        window.googleCalendarIntegration = new GoogleCalendarIntegration({
+          calendarInstance: window.weddingCalendar, // メインスクリプトで定義されるカレンダーインスタンス
+          apiConfigEndpoint: "/api/config", // サーバーのAPI設定エンドポイント
+        });
+
+        // 自動同期の切り替え処理
+        const autoSyncToggle = document.getElementById("auto-sync-toggle");
+        const autoSyncInterval = document.getElementById("auto-sync-interval");
+
+        if (autoSyncToggle) {
+          autoSyncToggle.addEventListener("change", function () {
+            if (this.checked) {
+              const intervalMinutes = parseInt(autoSyncInterval.value, 10);
+              window.googleCalendarIntegration.setupAutoSync(intervalMinutes);
+            } else {
+              window.googleCalendarIntegration.stopAutoSync();
+            }
+          });
+        }
+
+        if (autoSyncInterval) {
+          autoSyncInterval.addEventListener("change", function () {
+            if (autoSyncToggle.checked) {
+              const intervalMinutes = parseInt(this.value, 10);
+              window.googleCalendarIntegration.setupAutoSync(intervalMinutes);
+            }
+          });
+        }
+
+        // Google Calendar APIの初期化
+        const initGoogleCalendar = function () {
+          if (window.weddingCalendar) {
+            window.googleCalendarIntegration
+              .init()
+              .then(() => {
+                console.log("Google Calendar連携の準備ができました");
+              })
+              .catch((error) => {
+                console.error("Google Calendar連携の初期化エラー:", error);
+              });
+          } else {
+            // カレンダーがまだ初期化されていない場合、少し待ってから再試行
+            setTimeout(initGoogleCalendar, 500);
+          }
+        };
+
+        // アプリ起動時に初期化を開始
+        setTimeout(initGoogleCalendar, 1000);
+      });
+
+      // あなたのメインJSファイル内または<scrip>タグ内
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((registration) => {
+              console.log(
+                "サービスワーカーが正常に登録されました:",
+                registration.scope
+              );
+            })
+            .catch((error) => {
+              console.error("サービスワーカーの登録に失敗しました:", error);
+            });
+        });
+      }
+    </script>
+
+    <script src="js/main.js"></script>
+    <script src="js/forms.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/koyomi.js"></script>
+    <script src="js/GoogleCalendarIntegration.js"></script>
+  </body>
+</html>

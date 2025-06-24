@@ -1,0 +1,17 @@
+# Dependency directories
+node_modules/
+
+# Environment variables
+# 機密情報を含むため、これらのファイルはバージョン管理から除外します
+.env
+.env.*
+
+# Log files
+logs
+*.log
+firebase-debug.log*
+firebase-debug.*.log*
+
+# Local files used by Firebase emulators
+*.local
+

@@ -1,0 +1,80 @@
+/* --- モーダル共通 --- */
+.modal-body .form-group {
+  margin-bottom: 1rem; /* Bootstrap風の間隔 */
+}
+
+/* 終日チェックボックスのラベル */
+#event-allday + label {
+  margin-left: 5px;
+}
+
+/* モーダル内のボタンコンテナ */
+.modal-body .button-container {
+  margin-top: 20px;
+  display: flex; /* ボタンを横並びにする */
+  gap: 10px; /* ボタン間のスペース */
+  flex-wrap: wrap; /* ボタンが多い場合に折り返す */
+}
+
+/* --- 拡張イベント詳細モーダル --- */
+.enhanced-event-details .event-description {
+  white-space: pre-wrap; /* 改行やスペースを保持 */
+  background-color: #f9f9f9;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #eee;
+  margin-top: 0.5rem;
+}
+
+/* --- 画像アップロード関連 --- */
+.upload-btn {
+  /* 必要に応じてスタイルを追加 */
+  margin-bottom: 10px; /* 画像コンテナとの間隔 */
+}
+
+#image-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+  border: 1px dashed #ccc;
+  padding: 10px;
+  min-height: 100px; /* 画像がない場合もある程度の高さを確保 */
+  align-items: center;
+  justify-content: flex-start; /* 左寄せで画像を表示 */
+  background-color: #fdfdfd;
+}
+
+.uploaded-image {
+  max-width: 100px;
+  max-height: 100px;
+  object-fit: cover; /* アスペクト比を保ちつつコンテナにフィット */
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+/* --- 拡張イベントモーダル：カスタムカラー設定 --- */
+.custom-color-container {
+  display: flex;
+  align-items: center;
+  gap: 15px; /* 要素間のスペース */
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.custom-color-container .form-check {
+  margin-bottom: 0; /* form-group のマージンと重複しないように */
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* カラーピッカーのサイズ調整 */
+input[type="color"]#enhanced-event-custom-color {
+  width: 50px;
+  height: 30px;
+  padding: 2px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}

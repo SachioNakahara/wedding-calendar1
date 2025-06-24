@@ -1,0 +1,155 @@
+/* FullCalendar六曜表示用CSS */
+
+/* 元の曜日スタイル */
+.sunday-cell,
+.fc-day.fc-day-sun,
+td.fc-day-sun {
+  background-color: #ffeeee !important;
+}
+
+.saturday-cell,
+.fc-day.fc-day-sat,
+td.fc-day-sat {
+  background-color: #eeeeff !important;
+}
+
+.sunday-header,
+.fc-col-header-cell.fc-day-sun {
+  color: #ff0000 !important;
+  background-color: #ffeeee !important;
+}
+
+.saturday-header,
+.fc-col-header-cell.fc-day-sat {
+  color: #0000ff !important;
+  background-color: #eeeeff !important;
+}
+
+.fc
+  .fc-scrollgrid-section-header
+  .fc-scroller-harness
+  .fc-scroller
+  .fc-col-header
+  .fc-col-header-cell.fc-day-sat {
+  background-color: #eeeeff !important;
+}
+
+.fc
+  .fc-scrollgrid-section-header
+  .fc-scroller-harness
+  .fc-scroller
+  .fc-col-header
+  .fc-col-header-cell.fc-day-sun {
+  background-color: #ffeeee !important;
+}
+
+/* 六曜表示の基本スタイル */
+.rokuyo-display {
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 2px 4px;
+  margin: 1px;
+  border-radius: 3px;
+  display: inline-block;
+  text-align: center;
+  line-height: 1.2;
+  position: relative;
+  z-index: 1;
+}
+
+/* 六曜ごとの色分け */
+.rokuyo-大安 {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.rokuyo-赤口 {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.rokuyo-先勝 {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.rokuyo-友引 {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.rokuyo-先負 {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
+.rokuyo-仏滅 {
+  background-color: #d6d8d9;
+  color: #1b1e21;
+}
+
+/* FullCalendarとの連携調整 */
+.fc-daygrid-day-frame {
+  position: relative;
+}
+
+.fc-daygrid-day-top {
+  position: relative;
+}
+
+/* 六曜のホバー効果 */
+.rokuyo-display:hover {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+  cursor: default;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .rokuyo-display {
+    font-size: 1rem !important;
+    padding: 1px 2px !important;
+    margin: 1px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .rokuyo-display {
+    font-size: 0.7rem !important;
+    padding: 1px !important;
+    margin: 0.5px !important;
+  }
+}
+
+/* 印刷時の調整 */
+@media print {
+  .rokuyo-display {
+    font-size: 1rem !important;
+    background-color: transparent !important;
+    border: 3px solid #333 !important;
+  }
+
+  .rokuyo-大安 {
+    color: #000 !important;
+  }
+
+  .rokuyo-赤口 {
+    color: #000 !important;
+  }
+
+  .rokuyo-先勝 {
+    color: #000 !important;
+  }
+
+  .rokuyo-友引 {
+    color: #000 !important;
+  }
+
+  .rokuyo-先負 {
+    color: #000 !important;
+  }
+
+  .rokuyo-仏滅 {
+    color: #000 !important;
+  }
+}

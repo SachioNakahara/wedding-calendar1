@@ -11,7 +11,7 @@
         "*.local",
         "README.md"
       ],
-
+      "predeploy": ["npm ci"],
       "runtime": "nodejs20"
     }
   ],

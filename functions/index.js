@@ -82,9 +82,6 @@ app.use(
   })
 );
 
-// 静的ファイルの提供
-app.use(express.static(path.join(__dirname, "../backend/public")));
-
 // Google認証URL生成
 app.get("/auth/google", (req, res) => {
   try {

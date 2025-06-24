@@ -40,7 +40,7 @@ const config = {
 };
 
 const app = express();
-const PORT = config.PORT || 3000;
+// const PORT = config.PORT || 3000; // Functionsは内部的にポートを管理するため不要
 
 // OAuth2 設定
 const oauth2Client = new google.auth.OAuth2(
@@ -64,7 +64,8 @@ app.use(
     credentials: true,
   })
 );
-
+// セキュリティミドルウェアの追加
+app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

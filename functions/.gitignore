@@ -6,6 +6,7 @@ node_modules/
 .env
 .env.*
 
+
 # Log files
 logs
 *.log
@@ -14,4 +15,3 @@ firebase-debug.*.log*
 
 # Local files used by Firebase emulators
 *.local
-

@@ -3,15 +3,8 @@
     {
       "source": "functions",
       "codebase": "default",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local",
-        "README.md"
-      ],
-      "predeploy": ["npm ci"],
+      "ignore": ["node_modules", ".git", "firebase-debug.*.log", "*.local"],
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" ci"],
       "runtime": "nodejs20"
     }
   ],
@@ -27,14 +20,12 @@
         "source": "**",
         "destination": "/index.html"
       }
-    ],
-    "github": {
-      "workflows": [
-        "firebase-hosting-merge.yml",
-        "firebase-hosting-pull-request.yml"
-      ],
-      "predeploy": ["npm ci && npm run build"],
-      "postdeploy": []
-    }
+    ]
+  },
+  "emulators": {
+    "functions": { "port": 5001 },
+    "firestore": { "port": 8080 },
+    "hosting": { "port": 5000 },
+    "ui": { "enabled": true, "port": 4000 }
   }
 }

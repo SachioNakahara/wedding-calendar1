@@ -1,11 +1,12 @@
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
-const functions = require("firebase-functions"); // ★追加
-const session = require("express-session");
-
-const { google } = require("googleapis");
-const helmet = require("helmet"); // セキュリティ向上のため追加
+const functions = require("firebase-functions");
+const crypto = require("crypto"); // ★追加: cryptoモジュールをインポート
+const session = require("express-session"); // セッション管理
+const { google } = require("googleapis"); // Google API
+const helmet = require("helmet"); // セキュリティ対策
+const { Firestore } = require("@google-cloud/firestore"); // Firestore
+const { FirestoreStore } = require("@google-cloud/connect-firestore"); // Firestoreセッションストア
 
 // 環境変数の読み込み: 本番環境ではfunctions.config()、ローカルではdotenvを使用
 if (process.env.NODE_ENV !== "production") {
@@ -23,30 +24,34 @@ const config = {
     redirectUri:
       functions.config().google?.redirect_uri ||
       process.env.GOOGLE_REDIRECT_URI,
+    apiKey: functions.config().google?.api_key || process.env.GOOGLE_API_KEY,
   },
   session: {
     secret:
       functions.config().session?.secret ||
       process.env.SESSION_SECRET ||
-      "default-dev-secret",
+      "default-dev-secret", // 開発用デフォルト値
   },
   client: {
     origin:
       functions.config().client?.origin ||
-      process.env.CLIENT_ORIGIN ||
-      "http://localhost:3000",
+      process.env.CLIENT_ORIGIN || // .envファイルから読み込む
+      "http://localhost:5173", // 開発用デフォルト値
   },
   nodeEnv: process.env.NODE_ENV || "development",
 };
 
+// ★追加: Firestoreクライアントの初期化
+const firestore = new Firestore();
+
 const app = express();
-// const PORT = config.PORT || 3000; // Functionsは内部的にポートを管理するため不要
 
 // OAuth2 設定
+// OAuth2クライアントの初期化：設定値を参照
 const oauth2Client = new google.auth.OAuth2(
   config.google.clientId,
   config.google.clientSecret,
-  `${config.google.redirectUri}/auth/callback`
+  `${config.google.redirectUri}/auth/callback` // コールバックURLを修正
 );
 
 // Google Calendar API のスコープ
@@ -58,14 +63,29 @@ const SCOPES = [
 ];
 
 // ミドルウェア設定
+// CORS設定：許可するオリジンを制限
 app.use(
   cors({
-    origin: config.client.origin,
-    credentials: true,
+    origin: [
+      "https://f-wedding-df161.firebaseapp.com", // 本番環境
+      "https://f-wedding-df161.web.app", // 本番環境
+      "http://localhost:5173", // ローカル開発用 (Vite/Reactなど)
+      // ★追加: Firebase Hosting Emulatorからのリクエストを許可
+      "http://localhost:5000",
+      "http://127.0.0.1:5000",
+    ], // 許可するオリジン
+    credentials: true, // クッキーを許可
   })
 );
 // セキュリティミドルウェアの追加
-app.use(helmet());
+app.use(
+  helmet({
+    // Google OAuthのポップアップが親ウィンドウ(opener)と通信できるよう、
+    // Cross-Origin-Opener-Policyを無効化します。
+    // これをしないと、認証コールバックで window.opener が null になり、postMessage に失敗します。
+    crossOriginOpenerPolicy: false,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -79,47 +99,97 @@ app.use(
       secure: config.nodeEnv === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24時間
       httpOnly: true, // セキュリティ向上
+      // クロスドメインでCookieを送信するためにSameSite=NoneとSecure=trueが必要
+      sameSite: config.nodeEnv === "production" ? "none" : "lax",
+      store: new FirestoreStore({
+        // ★追加: セッションストアをFirestoreに設定
+        collection: "sessions", // Firestoreのコレクション名 (任意)
+        dataset: firestore, // ★修正: 実行環境のライブラリバージョン(v1)に合わせて 'dataset' を使用します
+        ttl: 24 * 60 * 60 * 1000, // 24時間 (ms)
+      }),
     },
   })
 );
+// Cloud FunctionsのベースURL (例: /api/) にアクセスされた場合のルートハンドラを追加
+app.get("/", (req, res) => {
+  res.json({
+    message: "Welcome to the Wedding Calendar API!",
+    version: "1.0.0",
+    endpoints: [
+      "/auth/google",
+      "/auth/callback",
+      "/auth/status",
+      "/auth/logout",
+      "/api/calendars",
+      "/api/events",
+      "/api/sync",
+      "/api/realtime-sync",
+      "/api/config",
+      "/health",
+    ],
+  });
+});
 
 // Google認証URL生成
 app.get("/auth/google", (req, res) => {
   try {
+    // ★追加: クライアントから渡されたオリジンを取得、なければ設定ファイルの値を使用
+    const clientOrigin = req.query.origin || config.client.origin;
+
+    // ★追加: stateにオリジン情報を含めてエンコード
+    const state = {
+      token: `security_token_${Date.now()}`,
+      origin: clientOrigin,
+    };
+    const encodedState = Buffer.from(JSON.stringify(state)).toString("base64");
+
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: SCOPES,
       prompt: "consent",
-      state: "security_token_" + Date.now(), // セキュリティ向上のためstateパラメータ追加
+      state: encodedState, // ★修正: エンコードしたstateを使用
     });
 
     res.json({ authUrl });
   } catch (error) {
-    console.error("認証URL生成エラー:", error);
-    res.status(500).json({ error: "認証URL生成に失敗しました" });
+    functions.logger.error("認証URL生成エラー:", error);
+    return res.status(500).json({ error: "認証URL生成に失敗しました" });
   }
 });
 
 // OAuth2 コールバック処理
 app.get("/auth/callback", async (req, res) => {
-  const { code, error, state } = req.query;
+  const { code, error, state: encodedState } = req.query;
+
+  // ★追加: stateからオリジンを復元するための準備
+  let clientOrigin = config.client.origin; // デフォルトのオリジン
 
   if (error) {
-    console.error("OAuth認証エラー:", error);
-    return res.redirect(`${config.client.origin}?error=auth_failed`);
+    functions.logger.error("OAuth認証エラー:", error);
+    return res.redirect(`${clientOrigin}?error=auth_failed`);
   }
 
   if (!code) {
-    console.error("認証コードが取得できませんでした");
-    return res.redirect(`${config.client.origin}?error=no_code`);
+    functions.logger.error("認証コードが取得できませんでした");
+    return res.redirect(`${clientOrigin}?error=no_code`);
   }
 
-  // stateパラメータの検証（セキュリティ向上）
-  if (!state || !state.startsWith("security_token_")) {
-    console.error("不正なstateパラメータ:", state);
-    return res.redirect(`${config.client.origin}?error=invalid_state`);
+  // ★修正: stateパラメータのデコードと検証
+  try {
+    const decodedState = JSON.parse(
+      Buffer.from(encodedState, "base64").toString("utf8")
+    );
+    if (
+      !decodedState.token ||
+      !decodedState.token.startsWith("security_token_")
+    ) {
+      throw new Error("Invalid security token in state");
+    }
+    clientOrigin = decodedState.origin; // stateから取得したオリジンを使用
+  } catch (e) {
+    functions.logger.error("不正なstateパラメータ:", e);
+    return res.redirect(`${clientOrigin}?error=invalid_state`);
   }
-
   try {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
@@ -132,13 +202,31 @@ app.get("/auth/callback", async (req, res) => {
     const userInfo = await oauth2.userinfo.get();
     req.session.userInfo = userInfo.data;
 
-    console.log("認証成功:", userInfo.data.email);
+    functions.logger.info("認証成功:", userInfo.data.email);
 
-    // 成功時のリダイレクト
-    res.redirect(`${config.client.origin}?auth=success`);
+    // ★追加: インラインスクリプト用のNonceを生成
+    const nonce = crypto.randomBytes(16).toString("base64");
+
+    // ★追加: Content-Security-Policyヘッダーを設定
+    res.setHeader("Content-Security-Policy", `script-src 'nonce-${nonce}'`);
+
+    // 成功時にポップアップウィンドウを閉じるためのHTMLとスクリプトを返す
+    // これにより、メインページをリロードすることなく、シームレスに認証を完了できる
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+         <script nonce="${nonce}"> // ★修正: scriptタグにnonce属性を追加
+             window.opener.postMessage('auth_succeeded', '${clientOrigin}');
+            window.close();
+          </script>
+        </head>
+        <body><p>認証に成功しました。このウィンドウは自動的に閉じられます。</p></body>
+      </html>
+    `);
   } catch (error) {
-    console.error("トークン取得エラー:", error);
-    return res.redirect(`${config.client.origin}?error=token_failed`);
+    functions.logger.error("トークン取得エラー:", error);
+    return res.redirect(`${clientOrigin}?error=token_failed`);
   }
 });
 
@@ -159,8 +247,8 @@ app.get("/auth/status", (req, res) => {
       res.json({ authenticated: false });
     }
   } catch (error) {
-    console.error("認証状態確認エラー:", error);
-    res.status(500).json({ error: "認証状態の確認に失敗しました" });
+    functions.logger.error("認証状態確認エラー:", error);
+    return res.status(500).json({ error: "認証状態の確認に失敗しました" });
   }
 });
 
@@ -169,15 +257,15 @@ app.post("/auth/logout", (req, res) => {
   try {
     req.session.destroy((err) => {
       if (err) {
-        console.error("セッション削除エラー:", err);
+        functions.logger.error("セッション削除エラー:", err);
         return res.status(500).json({ error: "ログアウトに失敗しました" });
       }
       res.clearCookie("connect.sid"); // セッションクッキーをクリア
-      res.json({ success: true });
+      return res.json({ success: true });
     });
   } catch (error) {
-    console.error("ログアウトエラー:", error);
-    res.status(500).json({ error: "ログアウトに失敗しました" });
+    functions.logger.error("ログアウトエラー:", error);
+    return res.status(500).json({ error: "ログアウトに失敗しました" });
   }
 });
 
@@ -193,7 +281,7 @@ function requireAuth(req, res, next) {
 }
 
 // Google Calendar一覧取得
-app.get("/api/calendars", requireAuth, async (req, res) => {
+app.get("/calendars", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -211,18 +299,20 @@ app.get("/api/calendars", requireAuth, async (req, res) => {
 
     res.json(calendars);
   } catch (error) {
-    console.error("カレンダー一覧取得エラー:", error);
+    functions.logger.error("カレンダー一覧取得エラー:", error);
     if (error.code === 401) {
       return res
         .status(401)
         .json({ error: "認証が無効です。再ログインしてください。" });
     }
-    res.status(500).json({ error: "カレンダー一覧の取得に失敗しました" });
+    return res
+      .status(500)
+      .json({ error: "カレンダー一覧の取得に失敗しました" });
   }
 });
 
 // Google Calendarイベント取得
-app.get("/api/events", requireAuth, async (req, res) => {
+app.get("/events", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -268,18 +358,18 @@ app.get("/api/events", requireAuth, async (req, res) => {
 
     res.json(formattedEvents);
   } catch (error) {
-    console.error("イベント取得エラー:", error);
+    functions.logger.error("イベント取得エラー:", error);
     if (error.code === 401) {
       return res
         .status(401)
         .json({ error: "認証が無効です。再ログインしてください。" });
     }
-    res.status(500).json({ error: "イベントの取得に失敗しました" });
+    return res.status(500).json({ error: "イベントの取得に失敗しました" });
   }
 });
 
 // Google Calendarイベント作成
-app.post("/api/events", requireAuth, async (req, res) => {
+app.post("/events", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -299,16 +389,16 @@ app.post("/api/events", requireAuth, async (req, res) => {
       sendUpdates: "all", // 招待者に通知を送信
     });
 
-    console.log("イベント作成成功:", createdEvent.data.id);
+    functions.logger.info("イベント作成成功:", createdEvent.data.id);
     res.json(createdEvent.data);
   } catch (error) {
-    console.error("イベント作成エラー:", error);
+    functions.logger.error("イベント作成エラー:", error);
     if (error.code === 401) {
       return res
         .status(401)
         .json({ error: "認証が無効です。再ログインしてください。" });
     }
-    res.status(500).json({
+    return res.status(500).json({
       error: "イベントの作成に失敗しました",
       details: config.nodeEnv === "development" ? error.message : undefined,
     });
@@ -316,7 +406,7 @@ app.post("/api/events", requireAuth, async (req, res) => {
 });
 
 // Google Calendarイベント更新
-app.put("/api/events/:eventId", requireAuth, async (req, res) => {
+app.put("/events/:eventId", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -336,10 +426,10 @@ app.put("/api/events/:eventId", requireAuth, async (req, res) => {
       sendUpdates: "all", // 招待者に通知を送信
     });
 
-    console.log("イベント更新成功:", eventId);
+    functions.logger.info("イベント更新成功:", updatedEvent.data.id);
     res.json(updatedEvent.data);
   } catch (error) {
-    console.error("イベント更新エラー:", error);
+    functions.logger.error("イベント更新エラー:", error);
     if (error.code === 401) {
       return res
         .status(401)
@@ -350,12 +440,12 @@ app.put("/api/events/:eventId", requireAuth, async (req, res) => {
         .status(404)
         .json({ error: "指定されたイベントが見つかりません" });
     }
-    res.status(500).json({ error: "イベントの更新に失敗しました" });
+    return res.status(500).json({ error: "イベントの更新に失敗しました" });
   }
 });
 
 // Google Calendarイベント削除
-app.delete("/api/events/:eventId", requireAuth, async (req, res) => {
+app.delete("/events/:eventId", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -368,10 +458,10 @@ app.delete("/api/events/:eventId", requireAuth, async (req, res) => {
       sendUpdates: "all", // 招待者に通知を送信
     });
 
-    console.log("イベント削除成功:", eventId);
+    functions.logger.info("イベント削除成功:", eventId);
     res.json({ success: true });
   } catch (error) {
-    console.error("イベント削除エラー:", error);
+    functions.logger.error("イベント削除エラー:", error);
     if (error.code === 401) {
       return res
         .status(401)
@@ -382,17 +472,22 @@ app.delete("/api/events/:eventId", requireAuth, async (req, res) => {
         .status(404)
         .json({ error: "指定されたイベントが見つかりません" });
     }
-    res.status(500).json({ error: "イベントの削除に失敗しました" });
+    return res.status(500).json({ error: "イベントの削除に失敗しました" });
   }
 });
 
 // 一括同期API
-app.post("/api/sync", requireAuth, async (req, res) => {
+app.post("/sync", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
     const { direction, events, calendarId = "primary" } = req.body;
-    const results = { success: 0, errors: 0, details: [] };
+    const results = {
+      exportedCount: 0,
+      importedCount: 0,
+      errors: 0,
+      details: [],
+    };
 
     if (!direction || !["export", "import", "both"].includes(direction)) {
       return res
@@ -428,7 +523,7 @@ app.post("/api/sync", requireAuth, async (req, res) => {
             resource: googleEvent,
             sendUpdates: "none", // 一括同期時は通知しない
           });
-          results.success++;
+          results.exportedCount++;
           results.details.push({
             type: "export",
             title: event.title,
@@ -467,8 +562,8 @@ app.post("/api/sync", requireAuth, async (req, res) => {
 
         // ★★★取得した生のGoogleイベントをログに出力★★★
         if (googleEvents.data.items) {
-          console.log(
-            "[SYNC IMPORT] Fetched Google Events raw data:",
+          functions.logger.info(
+            "[SYNC IMPORT] Fetched Google Events raw data:", // ロギングをfunctions.loggerに
             JSON.stringify(
               googleEvents.data.items.map((e) => ({
                 id: e.id,
@@ -483,7 +578,9 @@ app.post("/api/sync", requireAuth, async (req, res) => {
             )
           );
         } else {
-          console.log("[SYNC IMPORT] No events fetched from Google Calendar.");
+          functions.logger.info(
+            "[SYNC IMPORT] No events fetched from Google Calendar."
+          ); // ロギングをfunctions.loggerに
         }
 
         const seenEvents = new Map(); // 重複チェック用Map
@@ -504,7 +601,8 @@ app.post("/api/sync", requireAuth, async (req, res) => {
 
           const key = `${event.title}-${startKey}-${endKey}`;
           if (seenEvents.has(key)) {
-            console.log(
+            functions.logger.warn(
+              // ロギングをfunctions.loggerに
               `[SYNC IMPORT] Duplicate event content found (Title: ${
                 event.title
               }, Start: ${startKey}, End: ${endKey}). Original Google ID: ${
@@ -521,7 +619,8 @@ app.post("/api/sync", requireAuth, async (req, res) => {
           .map((googleEvent) => {
             // Google Calendarのイベントステータスが 'cancelled' のものは除外
             if (googleEvent.status === "cancelled") {
-              console.log(
+              functions.logger.info(
+                // ロギングをfunctions.loggerに
                 `[SYNC IMPORT] Skipping cancelled Google event: ${
                   googleEvent.summary
                 } (ID: ${googleEvent.id}, Start: ${
@@ -553,14 +652,16 @@ app.post("/api/sync", requireAuth, async (req, res) => {
               eventDate.setHours(0, 0, 0, 0);
             }
             if (eventDate.getTime() < todayStartTimestamp) {
-              console.log(
+              functions.logger.info(
+                // ロギングをfunctions.loggerに
                 `[SYNC IMPORT] Filtering out past event after conversion: ${appEvent.title} (ID: ${appEvent.id}, Start: ${appEvent.start})`
               );
               return false;
             }
             return true;
           } catch (e) {
-            console.warn(
+            functions.logger.warn(
+              // ロギングをfunctions.loggerに
               `[SYNC IMPORT] Invalid date in appEvent, skipping: ${appEvent.title}`,
               e
             );
@@ -568,7 +669,8 @@ app.post("/api/sync", requireAuth, async (req, res) => {
           }
         });
 
-        console.log(
+        functions.logger.info(
+          // ロギングをfunctions.loggerに
           "[SYNC IMPORT] Events to be sent to client:",
           JSON.stringify(
             eventsToImport.map((e) => ({
@@ -582,7 +684,7 @@ app.post("/api/sync", requireAuth, async (req, res) => {
         );
 
         results.importedEvents = eventsToImport;
-        results.success = eventsToImport.length; // 実際にインポートするイベント数で上書き
+        results.importedCount = eventsToImport.length;
         results.details.push({
           type: "import",
           status: "success",
@@ -599,20 +701,119 @@ app.post("/api/sync", requireAuth, async (req, res) => {
       }
     }
 
-    console.log("同期完了:", {
+    functions.logger.info("同期完了:", {
+      // ロギングをfunctions.loggerに
       direction,
-      success: results.success,
+      exported: results.exportedCount,
+      imported: results.importedCount,
       errors: results.errors,
     });
     res.json(results);
   } catch (error) {
-    console.error("同期エラー:", error);
-    res.status(500).json({ error: "同期に失敗しました" });
+    functions.logger.error("同期エラー:", error); // ロギングをfunctions.loggerに
+    return res.status(500).json({ error: "同期に失敗しました" });
   }
 });
 
+// ★ここから追加: リアルタイム同期API
+// FullCalendarでの変更(add, update, remove)をGoogle Calendarに即時反映させるためのエンドポイント
+app.post("/realtime-sync", requireAuth, async (req, res) => {
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  // フロントエンドから送られてくる変更内容の配列とカレンダーID
+  const { events, calendarId = "primary" } = req.body;
+
+  if (!events || !Array.isArray(events)) {
+    return res.status(400).json({ error: "同期するイベントデータが無効です" });
+  }
+
+  const results = [];
+
+  // 1件ずつ処理します
+  for (const item of events) {
+    const { action, event } = item;
+    // googleEventIdは、Google Calendar上でイベントを特定するために不可欠です。
+    const googleEventId = event.extendedProps?.googleEventId;
+
+    try {
+      let result;
+      // フロントエンドから送られてきた 'action' の種類に応じて処理を分岐
+      switch (action) {
+        case "add":
+          // 新規作成
+          result = await calendar.events.insert({
+            calendarId,
+            resource: convertToGoogleEvent(event),
+          });
+          // ★お探しのコードはここにあります (追加の場合)
+          results.push({
+            action,
+            status: "success",
+            googleEventId: result.data.id,
+            localId: event.id,
+          });
+          break;
+        case "update":
+          // 更新には googleEventId が必須
+          if (!googleEventId)
+            throw new Error("更新対象のGoogle Event IDがありません。");
+          result = await calendar.events.update({
+            calendarId,
+            eventId: googleEventId,
+            resource: convertToGoogleEvent(event),
+          });
+          // ★お探しのコードはここにあります (更新の場合)
+          results.push({
+            action,
+            status: "success",
+            googleEventId: result.data.id,
+            localId: event.id,
+          });
+          break;
+        case "remove":
+          // 削除にも googleEventId が必須
+          if (!googleEventId)
+            throw new Error("削除対象のGoogle Event IDがありません。");
+          await calendar.events.delete({
+            calendarId,
+            eventId: googleEventId,
+          });
+          // ★お探しのコードはここにあります (削除の場合)
+          results.push({
+            action,
+            status: "success",
+            googleEventId: googleEventId,
+            localId: event.id,
+          });
+          break;
+        default:
+          throw new Error(`不明なアクションです: ${action}`);
+      }
+    } catch (error) {
+      functions.logger.error(
+        `リアルタイム同期エラー (Action: ${action}, Title: ${event.title}):`,
+        error
+      );
+      results.push({
+        action,
+        status: "error",
+        title: event.title,
+        error: error.message,
+      });
+    }
+  }
+
+  const hasErrors = results.some((r) => r.status === "error");
+  if (hasErrors) {
+    return res
+      .status(500)
+      .json({ message: "一部のリアルタイム同期に失敗しました", results });
+  }
+
+  res.json({ message: "リアルタイム同期が完了しました", results });
+});
+
 // API設定情報提供
-app.get("/api/config", (req, res) => {
+app.get("/config", (req, res) => {
   res.json({
     apiKey: config.google.apiKey ? "設定済み" : "未設定",
     clientId: config.google.clientId,
@@ -629,7 +830,6 @@ app.get("/health", (req, res) => {
     status: "OK",
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
-    port: PORT,
     nodeVersion: process.version,
     uptime: process.uptime(),
   });
@@ -656,14 +856,21 @@ function convertToGoogleEvent(event) {
   // 日時の設定
   // start は必須
   if (!event.start) {
-    console.warn("イベントに開始日時がありません。スキップします:", event);
+    functions.logger.warn(
+      "イベントに開始日時がありません。スキップします:",
+      event
+    ); // ロギングをfunctions.loggerに
+
     return null; // 開始日時がないイベントは変換しない
   }
 
   try {
     const startDate = new Date(event.start);
     if (isNaN(startDate.getTime())) {
-      console.warn("イベントの開始日時が無効です。スキップします:", event);
+      functions.logger.warn(
+        "イベントの開始日時が無効です。スキップします:",
+        event
+      ); // ロギングをfunctions.loggerに
       return null; // 無効な開始日時は変換しない
     }
 
@@ -685,7 +892,11 @@ function convertToGoogleEvent(event) {
       googleEvent.end.timeZone = "Asia/Tokyo"; // タイムゾーンを固定
     }
   } catch (e) {
-    console.warn("イベントの開始日時が無効です。スキップします:", event);
+    functions.logger.warn(
+      "イベントの開始日時が無効です。スキップします:",
+      event,
+      e
+    ); // ロギングをfunctions.loggerに
     return null; // 無効な開始日時は変換しない
   }
 
@@ -867,7 +1078,7 @@ function getWeddingColorFromGoogle(colorId) {
 
 // エラーハンドリングミドルウェア
 app.use((error, req, res, next) => {
-  console.error("サーバーエラー:", error);
+  functions.logger.error("サーバーエラー:", error); // ロギングをfunctions.loggerに
 
   // エラータイプに応じた処理
   if (error.name === "ValidationError") {
@@ -876,14 +1087,14 @@ app.use((error, req, res, next) => {
       details: config.nodeEnv === "development" ? error.message : undefined,
     });
   }
-
   if (error.code === "ECONNREFUSED") {
     return res.status(503).json({
       error: "外部サービスに接続できません",
     });
   }
 
-  res.status(500).json({
+  return res.status(500).json({
+    // return を追加
     error: "サーバー内部エラーが発生しました",
     message: config.nodeEnv === "development" ? error.message : undefined,
   });
@@ -891,21 +1102,22 @@ app.use((error, req, res, next) => {
 
 // 404ハンドラー
 app.use((req, res) => {
-  res.status(404).json({
+  return res.status(404).json({
+    // return を追加
     error: "エンドポイントが見つかりません",
     path: req.path,
     method: req.method,
   });
 });
 
-// プロセス終了時の処理
+// プロセス終了時の処理 (Firebase Functionsでは通常不要だが、念のためloggerに)
 process.on("SIGTERM", () => {
-  console.log("📤 SIGTERM受信、サーバーを正常終了します");
+  functions.logger.info("📤 SIGTERM受信、サーバーを正常終了します");
   process.exit(0);
 });
 
 process.on("SIGINT", () => {
-  console.log("📤 SIGINT受信、サーバーを正常終了します");
+  functions.logger.info("📤 SIGINT受信、サーバーを正常終了します");
   process.exit(0);
 });
 

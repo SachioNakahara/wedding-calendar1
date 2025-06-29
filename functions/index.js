@@ -104,7 +104,7 @@ app.use(
   })
 );
 // Cloud FunctionsのベースURL (例: /api/) にアクセスされた場合のルートハンドラを追加
-app.get("/", (req, res) => {
+app.get("/api", (req, res) => {
   res.json({
     message: "Welcome to the Wedding Calendar API!",
     version: "1.0.0",
@@ -124,7 +124,7 @@ app.get("/", (req, res) => {
 });
 
 // Google認証URL生成
-app.get("/auth/google", (req, res) => {
+app.get("/api/auth/google", (req, res) => {
   try {
     // ★追加: クライアントから渡されたオリジンを取得、なければ設定ファイルの値を使用
     const clientOrigin = req.query.origin || CLIENT_ORIGIN.value();
@@ -151,7 +151,7 @@ app.get("/auth/google", (req, res) => {
 });
 
 // OAuth2 コールバック処理
-app.get("/auth/callback", async (req, res) => {
+app.get("/api/auth/callback", async (req, res) => {
   const { code, error, state: encodedState } = req.query;
 
   // ★追加: stateからオリジンを復元するための準備
@@ -224,7 +224,7 @@ app.get("/auth/callback", async (req, res) => {
 });
 
 // 認証状態確認
-app.get("/auth/status", (req, res) => {
+app.get("/api/auth/status", (req, res) => {
   try {
     if (req.session.tokens && req.session.userInfo) {
       res.json({
@@ -246,7 +246,7 @@ app.get("/auth/status", (req, res) => {
 });
 
 // ログアウト
-app.post("/auth/logout", (req, res) => {
+app.post("/api/auth/logout", (req, res) => {
   try {
     req.session.destroy((err) => {
       if (err) {
@@ -274,7 +274,7 @@ function requireAuth(req, res, next) {
 }
 
 // Google Calendar一覧取得
-app.get("/calendars", requireAuth, async (req, res) => {
+app.get("/api/calendars", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -305,7 +305,7 @@ app.get("/calendars", requireAuth, async (req, res) => {
 });
 
 // Google Calendarイベント取得
-app.get("/events", requireAuth, async (req, res) => {
+app.get("/api/events", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -362,7 +362,7 @@ app.get("/events", requireAuth, async (req, res) => {
 });
 
 // Google Calendarイベント作成
-app.post("/events", requireAuth, async (req, res) => {
+app.post("/api/events", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -399,7 +399,7 @@ app.post("/events", requireAuth, async (req, res) => {
 });
 
 // Google Calendarイベント更新
-app.put("/events/:eventId", requireAuth, async (req, res) => {
+app.put("/api/events/:eventId", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -438,7 +438,7 @@ app.put("/events/:eventId", requireAuth, async (req, res) => {
 });
 
 // Google Calendarイベント削除
-app.delete("/events/:eventId", requireAuth, async (req, res) => {
+app.delete("/api/events/:eventId", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -470,7 +470,7 @@ app.delete("/events/:eventId", requireAuth, async (req, res) => {
 });
 
 // 一括同期API
-app.post("/sync", requireAuth, async (req, res) => {
+app.post("/api/sync", requireAuth, async (req, res) => {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -710,7 +710,7 @@ app.post("/sync", requireAuth, async (req, res) => {
 
 // ★ここから追加: リアルタイム同期API
 // FullCalendarでの変更(add, update, remove)をGoogle Calendarに即時反映させるためのエンドポイント
-app.post("/realtime-sync", requireAuth, async (req, res) => {
+app.post("/api/realtime-sync", requireAuth, async (req, res) => {
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
   // フロントエンドから送られてくる変更内容の配列とカレンダーID
   const { events, calendarId = "primary" } = req.body;
@@ -806,7 +806,7 @@ app.post("/realtime-sync", requireAuth, async (req, res) => {
 });
 
 // API設定情報提供
-app.get("/config", (req, res) => {
+app.get("/api/config", (req, res) => {
   res.json({
     apiKey: GOOGLE_API_KEY.value() ? "設定済み" : "未設定",
     clientId: GOOGLE_CLIENT_ID.value(),
@@ -818,7 +818,7 @@ app.get("/config", (req, res) => {
 });
 
 // ヘルスチェック
-app.get("/health", (req, res) => {
+app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
     timestamp: new Date().toISOString(),

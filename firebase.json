@@ -3,7 +3,14 @@
     {
       "source": "functions",
       "codebase": "default",
-      "ignore": ["node_modules", ".git", "firebase-debug.*.log", "*.local"],
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.*.log",
+        "*.local",
+        ".env",
+        ".env.*"
+      ],
       "predeploy": ["npm --prefix \"$RESOURCE_DIR\" ci"],
       "runtime": "nodejs20"
     }

@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const functions = require("firebase-functions");
+const { defineString, defineSecret } = require("firebase-functions/params");
 const crypto = require("crypto"); // ★追加: cryptoモジュールをインポート
 const session = require("express-session"); // セッション管理
 const { google } = require("googleapis"); // Google API
@@ -8,51 +9,32 @@ const helmet = require("helmet"); // セキュリティ対策
 const { Firestore } = require("@google-cloud/firestore"); // Firestore
 const { FirestoreStore } = require("@google-cloud/connect-firestore"); // Firestoreセッションストア
 
-// 環境変数の読み込み: 本番環境ではfunctions.config()、ローカルではdotenvを使用
+// .envファイルはローカルエミュレータでのテスト時に使用されます
+// `firebase functions:config:set` やパラメータ化された構成で設定された値は、
+// デプロイされた環境で自動的に利用可能になります。
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
 
-// 設定値を一元管理
-const config = {
-  google: {
-    clientId:
-      functions.config().google?.client_id || process.env.GOOGLE_CLIENT_ID,
-    clientSecret:
-      functions.config().google?.client_secret ||
-      process.env.GOOGLE_CLIENT_SECRET,
-    redirectUri:
-      functions.config().google?.redirect_uri ||
-      process.env.GOOGLE_REDIRECT_URI,
-    apiKey: functions.config().google?.api_key || process.env.GOOGLE_API_KEY,
-  },
-  session: {
-    secret:
-      functions.config().session?.secret ||
-      process.env.SESSION_SECRET ||
-      "default-dev-secret", // 開発用デフォルト値
-  },
-  client: {
-    origin:
-      functions.config().client?.origin ||
-      process.env.CLIENT_ORIGIN || // .envファイルから読み込む
-      "http://localhost:5173", // 開発用デフォルト値
-  },
-  nodeEnv: process.env.NODE_ENV || "development",
-};
+// --- パラメータ化された構成 (Parameterized Configuration) ---
+// defineStringやdefineSecretを使用して環境変数を定義します。
+// これにより、デプロイ時に値を設定でき、コード内に機密情報を含める必要がなくなります。
+// .env.<project_id> ファイルに値を設定し、デプロイ時に自動で読み込ませます。
+const GOOGLE_CLIENT_ID = defineString("GOOGLE_CLIENT_ID");
+const GOOGLE_REDIRECT_URI = defineString("GOOGLE_REDIRECT_URI");
+const GOOGLE_API_KEY = defineString("GOOGLE_API_KEY");
+const CLIENT_ORIGIN = defineString("CLIENT_ORIGIN", {
+  default: "http://localhost:5173",
+});
+
+// 機密情報は defineSecret を使用します。これによりCloud Secret Managerに保存されます。
+const GOOGLE_CLIENT_SECRET = defineSecret("GOOGLE_CLIENT_SECRET");
+const SESSION_SECRET = defineSecret("SESSION_SECRET");
 
 // ★追加: Firestoreクライアントの初期化
 const firestore = new Firestore();
 
 const app = express();
-
-// OAuth2 設定
-// OAuth2クライアントの初期化：設定値を参照
-const oauth2Client = new google.auth.OAuth2(
-  config.google.clientId,
-  config.google.clientSecret,
-  `${config.google.redirectUri}/auth/callback` // コールバックURLを修正
-);
 
 // Google Calendar API のスコープ
 const SCOPES = [
@@ -61,6 +43,17 @@ const SCOPES = [
   "https://www.googleapis.com/auth/userinfo.profile",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
+
+// OAuth2クライアントの初期化
+// パラメータの値は .value() メソッドで取得します。
+const oauth2Client = new google.auth.OAuth2(
+  GOOGLE_CLIENT_ID.value(),
+  GOOGLE_CLIENT_SECRET.value(),
+  // コールバックURLはリダイレクトURIの末尾に /auth/callback を追加したものです
+  `${GOOGLE_REDIRECT_URI.value()}/auth/callback`
+);
+
+const NODE_ENV = process.env.NODE_ENV || "development";
 
 // ミドルウェア設定
 // CORS設定：許可するオリジンを制限
@@ -92,15 +85,15 @@ app.use(express.urlencoded({ extended: true }));
 // セッション設定
 app.use(
   session({
-    secret: config.session.secret,
+    secret: SESSION_SECRET.value(),
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: config.nodeEnv === "production",
+      secure: NODE_ENV === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24時間
       httpOnly: true, // セキュリティ向上
       // クロスドメインでCookieを送信するためにSameSite=NoneとSecure=trueが必要
-      sameSite: config.nodeEnv === "production" ? "none" : "lax",
+      sameSite: NODE_ENV === "production" ? "none" : "lax",
       store: new FirestoreStore({
         // ★追加: セッションストアをFirestoreに設定
         collection: "sessions", // Firestoreのコレクション名 (任意)
@@ -134,7 +127,7 @@ app.get("/", (req, res) => {
 app.get("/auth/google", (req, res) => {
   try {
     // ★追加: クライアントから渡されたオリジンを取得、なければ設定ファイルの値を使用
-    const clientOrigin = req.query.origin || config.client.origin;
+    const clientOrigin = req.query.origin || CLIENT_ORIGIN.value();
 
     // ★追加: stateにオリジン情報を含めてエンコード
     const state = {
@@ -162,7 +155,7 @@ app.get("/auth/callback", async (req, res) => {
   const { code, error, state: encodedState } = req.query;
 
   // ★追加: stateからオリジンを復元するための準備
-  let clientOrigin = config.client.origin; // デフォルトのオリジン
+  let clientOrigin = CLIENT_ORIGIN.value(); // デフォルトのオリジン
 
   if (error) {
     functions.logger.error("OAuth認証エラー:", error);
@@ -400,7 +393,7 @@ app.post("/events", requireAuth, async (req, res) => {
     }
     return res.status(500).json({
       error: "イベントの作成に失敗しました",
-      details: config.nodeEnv === "development" ? error.message : undefined,
+      details: NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -815,12 +808,12 @@ app.post("/realtime-sync", requireAuth, async (req, res) => {
 // API設定情報提供
 app.get("/config", (req, res) => {
   res.json({
-    apiKey: config.google.apiKey ? "設定済み" : "未設定",
-    clientId: config.google.clientId,
-    redirectUri: config.google.redirectUri,
-    clientOrigin: config.client.origin,
+    apiKey: GOOGLE_API_KEY.value() ? "設定済み" : "未設定",
+    clientId: GOOGLE_CLIENT_ID.value(),
+    redirectUri: GOOGLE_REDIRECT_URI.value(),
+    clientOrigin: CLIENT_ORIGIN.value(),
     scopes: SCOPES,
-    environment: config.nodeEnv,
+    environment: NODE_ENV,
   });
 });
 
@@ -829,7 +822,7 @@ app.get("/health", (req, res) => {
   res.json({
     status: "OK",
     timestamp: new Date().toISOString(),
-    environment: config.nodeEnv,
+    environment: NODE_ENV,
     nodeVersion: process.version,
     uptime: process.uptime(),
   });
@@ -1084,7 +1077,7 @@ app.use((error, req, res, next) => {
   if (error.name === "ValidationError") {
     return res.status(400).json({
       error: "入力データが無効です",
-      details: config.nodeEnv === "development" ? error.message : undefined,
+      details: NODE_ENV === "development" ? error.message : undefined,
     });
   }
   if (error.code === "ECONNREFUSED") {
@@ -1096,7 +1089,7 @@ app.use((error, req, res, next) => {
   return res.status(500).json({
     // return を追加
     error: "サーバー内部エラーが発生しました",
-    message: config.nodeEnv === "development" ? error.message : undefined,
+    message: NODE_ENV === "development" ? error.message : undefined,
   });
 });
 

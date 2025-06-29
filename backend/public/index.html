@@ -287,7 +287,7 @@
           <li id="integration-menu-item"><i class="fas fa-link"></i> 連携</li>
 
           <li>
-            <a href="app.html" style="color: inherit; text-decoration: none"
+            <a href="/" style="color: inherit; text-decoration: none"
               ><i class="fas fa-home"></i> ホームに戻る</a
             >
           </li>
@@ -615,123 +615,11 @@
       </div>
     </div>
 
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        // サイドバーのメニュー項目クリックイベント
-        const scheduleMenuItem = document.getElementById("schedule-menu-item");
-        const integrationMenuItem = document.getElementById(
-          "integration-menu-item"
-        );
-        const scheduleSection = document.getElementById("schedule");
-        const integrationSection = document.getElementById("integration");
-        const sidebarMenuItems = document.querySelectorAll(".sidebar-menu li");
-        const contentSections = document.querySelectorAll(".content-section");
-
-        if (integrationMenuItem) {
-          integrationMenuItem.addEventListener("click", function () {
-            // アクティブなセクションを切り替え
-            document
-              .querySelectorAll(".sidebar-menu li")
-              .forEach((item) => item.classList.remove("active"));
-            integrationMenuItem.classList.add("active");
-
-            // コンテンツセクションの表示切り替え
-            document
-              .querySelectorAll(".content-section")
-              .forEach((section) => section.classList.remove("active"));
-            integrationSection.classList.add("active");
-          });
-        }
-
-        if (scheduleMenuItem) {
-          scheduleMenuItem.addEventListener("click", function () {
-            // アクティブなセクションを切り替え
-            document
-              .querySelectorAll(".sidebar-menu li")
-              .forEach((item) => item.classList.remove("active"));
-            scheduleMenuItem.classList.add("active");
-
-            // コンテンツセクションの表示切り替え
-            document
-              .querySelectorAll(".content-section")
-              .forEach((section) => section.classList.remove("active"));
-            scheduleSection.classList.add("active");
-          });
-        }
-
-        // Google Calendar連携インスタンス化
-        window.googleCalendarIntegration = new GoogleCalendarIntegration({
-          calendarInstance: window.weddingCalendar, // メインスクリプトで定義されるカレンダーインスタンス
-          apiConfigEndpoint: "/api/config", // サーバーのAPI設定エンドポイント
-        });
-
-        // 自動同期の切り替え処理
-        const autoSyncToggle = document.getElementById("auto-sync-toggle");
-        const autoSyncInterval = document.getElementById("auto-sync-interval");
-
-        if (autoSyncToggle) {
-          autoSyncToggle.addEventListener("change", function () {
-            if (this.checked) {
-              const intervalMinutes = parseInt(autoSyncInterval.value, 10);
-              window.googleCalendarIntegration.setupAutoSync(intervalMinutes);
-            } else {
-              window.googleCalendarIntegration.stopAutoSync();
-            }
-          });
-        }
-
-        if (autoSyncInterval) {
-          autoSyncInterval.addEventListener("change", function () {
-            if (autoSyncToggle.checked) {
-              const intervalMinutes = parseInt(this.value, 10);
-              window.googleCalendarIntegration.setupAutoSync(intervalMinutes);
-            }
-          });
-        }
-
-        // Google Calendar APIの初期化
-        const initGoogleCalendar = function () {
-          if (window.weddingCalendar) {
-            window.googleCalendarIntegration
-              .init()
-              .then(() => {
-                console.log("Google Calendar連携の準備ができました");
-              })
-              .catch((error) => {
-                console.error("Google Calendar連携の初期化エラー:", error);
-              });
-          } else {
-            // カレンダーがまだ初期化されていない場合、少し待ってから再試行
-            setTimeout(initGoogleCalendar, 500);
-          }
-        };
-
-        // アプリ起動時に初期化を開始
-        setTimeout(initGoogleCalendar, 1000);
-      });
-
-      // あなたのメインJSファイル内または<scrip>タグ内
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("/sw.js")
-            .then((registration) => {
-              console.log(
-                "サービスワーカーが正常に登録されました:",
-                registration.scope
-              );
-            })
-            .catch((error) => {
-              console.error("サービスワーカーの登録に失敗しました:", error);
-            });
-        });
-      }
-    </script>
-
+    <script src="js/koyomi.js"></script>
     <script src="js/main.js"></script>
     <script src="js/forms.js"></script>
     <script src="js/sidebar.js"></script>
-    <script src="js/koyomi.js"></script>
     <script src="js/GoogleCalendarIntegration.js"></script>
+    <script src="js/app-init.js"></script>
   </body>
 </html>

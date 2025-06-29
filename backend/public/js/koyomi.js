@@ -1,5 +1,5 @@
 // FullCalendar六曜表示拡張モジュール
-// 外部CSSファイル（rokuyo.css）と連動
+// 外部CSSファイル（rokuyo.css）と連動。main.jsから呼び出されることを想定。
 
 // 天文計算エンジン
 class AstronomyEngine {
@@ -115,246 +115,43 @@ class RokuyoCalculator {
   }
 }
 
-// FullCalendar六曜拡張クラス
-class FullCalendarRokuyoExtension {
-  constructor() {
-    this.rokuyoCalculator = new RokuyoCalculator();
-  }
+// グローバルスコープでRokuyoCalculatorのインスタンスを作成
+const rokuyoCalculator = new RokuyoCalculator();
 
-  /**
-   * 既存のFullCalendar初期化関数を拡張
-   */
-  extendCalendarInitialization() {
-    // 元のinitializeCalendar関数を保存
-    const originalInitializeCalendar = window.initializeCalendar;
+/**
+ * 指定されたセルに六曜表示を追加するグローバル関数
+ * @param {Object} arg - FullCalendarのdayCellDidMountの引数
+ */
+window.addRokuyoToCell = function (arg) {
+  if (!arg || !arg.date || !arg.el) return;
 
-    if (typeof originalInitializeCalendar !== "function") {
-      console.error("元のinitializeCalendar関数が見つかりません");
-      return;
+  try {
+    const date = new Date(arg.date);
+    const rokuyo = rokuyoCalculator.getRokuyo(date);
+
+    // 既存の六曜表示があれば削除
+    const existingRokuyo = arg.el.querySelector(".rokuyo-display");
+    if (existingRokuyo) {
+      existingRokuyo.remove();
     }
 
-    // 拡張されたinitializeCalendar関数を定義
-    window.initializeCalendar = () => {
-      const calendarEl = document.getElementById("calendar");
+    // 六曜表示用の要素を作成
+    const rokuyoEl = document.createElement("div");
+    rokuyoEl.className = `rokuyo-display rokuyo-${rokuyo}`;
+    rokuyoEl.textContent = rokuyo;
 
-      if (!calendarEl) {
-        console.error("カレンダー要素が見つかりません");
-        return;
-      }
-
-      const events = [];
-
-      try {
-        const calendar = new FullCalendar.Calendar(calendarEl, {
-          initialView: "dayGridMonth",
-          headerToolbar: {
-            left: "prev,next",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
-          },
-          events: events,
-          locale: "ja",
-          timeZone: "Asia/Tokyo",
-          selectable: true,
-          editable: true,
-          displayEventTime: true,
-          displayEventEnd: true,
-          eventDisplay: "block",
-          fixedWeekCount: false,
-
-          // 六曜表示の処理を追加
-          dayCellDidMount: (arg) => {
-            // 元の曜日背景色処理
-            const day = arg.date.getDay();
-            if (day === 0) {
-              arg.el.classList.add("sunday-cell");
-            } else if (day === 6) {
-              arg.el.classList.add("saturday-cell");
-            }
-
-            // 六曜表示を追加
-            this.addRokuyoToCell(arg);
-          },
-
-          // 週の描画後に曜日の色を適用（元の機能を維持）
-          dayRender: function (dayRenderInfo) {
-            const day = dayRenderInfo.date.getDay();
-            if (day === 0) {
-              dayRenderInfo.el.classList.add("sunday-cell");
-            } else if (day === 6) {
-              dayRenderInfo.el.classList.add("saturday-cell");
-            }
-          },
-
-          // 曜日ヘッダーの書式設定（元の機能を維持）
-          columnHeaderClassNames: function (arg) {
-            const day = arg.date.getDay();
-            if (day === 0) {
-              return ["sunday-header"];
-            } else if (day === 6) {
-              return ["saturday-header"];
-            }
-            return [];
-          },
-
-          // 曜日ヘッダーの背景色を設定（元の機能を維持）
-          columnHeaderDidMount: function (arg) {
-            const day = arg.date.getDay();
-            if (day === 0) {
-              arg.el.style.backgroundColor = "#ffeeee";
-            } else if (day === 6) {
-              arg.el.style.backgroundColor = "#eeeeff";
-            }
-          },
-
-          // 元のイベント処理を維持
-          eventClick: function (info) {
-            if (
-              info.event.extendedProps &&
-              info.event.extendedProps.isEnhanced
-            ) {
-              showEnhancedEventDetails(info.event);
-            } else {
-              showEventDetails(info.event);
-            }
-          },
-
-          dateClick: function (info) {
-            calendar.changeView("timeGridDay", info.dateStr);
-          },
-
-          eventDrop: function (info) {
-            updateEvent(info.event);
-          },
-
-          eventResize: function (info) {
-            updateEvent(info.event);
-          },
-
-          // ビュー変更時に六曜を再表示
-          viewDidMount: () => {
-            setTimeout(() => this.refreshRokuyoDisplay(), 100);
-          },
-
-          // 日付が変更された時に六曜を再表示
-          datesSet: () => {
-            setTimeout(() => this.refreshRokuyoDisplay(), 100);
-          },
-        });
-
-        calendar.render();
-        window.weddingCalendar = calendar;
-        console.log("カレンダーが正常に初期化されました（六曜表示機能付き）");
-
-        // 元のイベント読み込み処理
-        loadEvents()
-          .then((loadedEvents) => {
-            if (loadedEvents && loadedEvents.length > 0) {
-              loadedEvents.forEach((event) => {
-                window.weddingCalendar.addEvent(event);
-              });
-            }
-          })
-          .catch((error) => {
-            console.error("イベントの読み込みに失敗しました:", error);
-          });
-
-        // +ボタンのイベントリスナー（元の機能を維持）
-        const addButton = document.getElementById("add-button");
-        if (addButton) {
-          addButton.addEventListener("click", function () {
-            if (
-              document.getElementById("schedule").classList.contains("active")
-            ) {
-              addNewEnhancedEvent(new Date());
-            }
-          });
-        }
-      } catch (error) {
-        console.error("カレンダーの初期化中にエラーが発生しました:", error);
-      }
-    };
-  }
-
-  /**
-   * セルに六曜を追加
-   * @param {Object} arg - FullCalendarのdayCellDidMountの引数
-   */
-  addRokuyoToCell(arg) {
-    try {
-      const date = new Date(arg.date);
-      const rokuyo = this.rokuyoCalculator.getRokuyo(date);
-
-      // 六曜表示用の要素を作成（CSSクラスのみ設定）
-      const rokuyoEl = document.createElement("div");
-      rokuyoEl.className = `rokuyo-display rokuyo-${rokuyo}`;
-      rokuyoEl.textContent = rokuyo;
-
-      // セルに六曜要素を追加
-      const dayNumber = arg.el.querySelector(".fc-daygrid-day-number");
-      if (dayNumber) {
-        dayNumber.parentNode.insertBefore(rokuyoEl, dayNumber.nextSibling);
-      } else {
-        arg.el.appendChild(rokuyoEl);
-      }
-    } catch (error) {
-      console.error("六曜表示エラー:", error);
+    // セルに六曜要素を追加
+    const dayNumber = arg.el.querySelector(".fc-daygrid-day-number");
+    if (dayNumber) {
+      // 日付番号の直後に挿入
+      dayNumber.parentNode.insertBefore(rokuyoEl, dayNumber.nextSibling);
+    } else {
+      // 見つからない場合はセルの末尾に追加
+      arg.el.appendChild(rokuyoEl);
     }
+  } catch (error) {
+    console.error("六曜表示エラー:", error);
   }
+};
 
-  /**
-   * 六曜表示を更新（ビュー変更時など）
-   */
-  refreshRokuyoDisplay() {
-    try {
-      const dayCells = document.querySelectorAll(".fc-daygrid-day");
-
-      dayCells.forEach((cell) => {
-        // 既存の六曜表示を削除
-        const existingRokuyo = cell.querySelector(".rokuyo-display");
-        if (existingRokuyo) {
-          existingRokuyo.remove();
-        }
-
-        // 日付を取得
-        const dateStr = cell.getAttribute("data-date");
-        if (dateStr) {
-          const date = new Date(dateStr + "T00:00:00");
-          const rokuyo = this.rokuyoCalculator.getRokuyo(date);
-
-          // 新しい六曜表示を作成（CSSクラスのみ設定）
-          const rokuyoEl = document.createElement("div");
-          rokuyoEl.className = `rokuyo-display rokuyo-${rokuyo}`;
-          rokuyoEl.textContent = rokuyo;
-
-          // セルに追加
-          const dayNumber = cell.querySelector(".fc-daygrid-day-number");
-          if (dayNumber) {
-            dayNumber.parentNode.insertBefore(rokuyoEl, dayNumber.nextSibling);
-          } else {
-            cell.appendChild(rokuyoEl);
-          }
-        }
-      });
-    } catch (error) {
-      console.error("六曜表示更新エラー:", error);
-    }
-  }
-
-  /**
-   * 初期化メソッド
-   */
-  init() {
-    this.extendCalendarInitialization();
-    console.log("FullCalendar六曜拡張が初期化されました");
-  }
-}
-
-// 自動初期化
-document.addEventListener("DOMContentLoaded", function () {
-  const rokuyoExtension = new FullCalendarRokuyoExtension();
-  rokuyoExtension.init();
-});
-
-// グローバルに公開（デバッグ用）
-window.FullCalendarRokuyoExtension = FullCalendarRokuyoExtension;
+console.log("koyomi.js: 六曜表示関数 (addRokuyoToCell) が準備できました。");

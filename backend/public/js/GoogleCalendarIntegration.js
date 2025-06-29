@@ -5,7 +5,12 @@
 class GoogleCalendarIntegration {
   constructor(options = {}) {
     this.calendarInstance = options.calendarInstance;
-    this.apiBaseUrl = options.apiBaseUrl || "http://localhost:3000";
+
+    // ★ APIのベースURLを相対パスに統一
+    // firebase.jsonのrewrites設定により、ローカルでも本番でも自動的に正しいCloud Functionに転送される
+    this.apiBaseUrl = "/api";
+    console.log(`API Base URL is set to: ${this.apiBaseUrl}`);
+
     this.authenticated = false;
     this.userInfo = null;
     this.autoSyncInterval = null;
@@ -106,7 +111,7 @@ class GoogleCalendarIntegration {
     }
 
     // URLパラメータから認証結果をチェック
-    this.checkAuthCallback();
+    // this.checkAuthCallback();
   }
 
   /**
@@ -249,6 +254,7 @@ class GoogleCalendarIntegration {
       if (response.ok) {
         const result = await response.json();
         console.log("リアルタイム同期完了:", result);
+        this.updateLocalEventsWithSyncResult(result.results);
       } else {
         throw new Error(`リアルタイム同期失敗: ${response.status}`);
       }
@@ -283,6 +289,7 @@ class GoogleCalendarIntegration {
   async checkAuthStatus() {
     try {
       const response = await fetch(`${this.apiBaseUrl}/auth/status`, {
+        // 修正: /api/auth/status を呼び出す
         credentials: "include",
       });
 
@@ -308,8 +315,32 @@ class GoogleCalendarIntegration {
    */
   async authorize() {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/auth/google`);
-      const data = await response.json();
+      // サーバーとのセッションを維持するためにCookieを送信する
+      // ★修正: 現在のクライアントのオリジンをサーバーに渡す
+      const response = await fetch(
+        `${this.apiBaseUrl}/auth/google?origin=${window.location.origin}`, // 修正: /api/auth/google を呼び出す
+        {
+          credentials: "include",
+        }
+      );
+
+      // レスポンスが正常でない場合、エラーとして処理する
+      if (!response.ok) {
+        const errorText = await response
+          .text()
+          .catch(() => "サーバーからのエラー詳細を取得できませんでした。");
+        throw new Error(
+          `認証URLの取得に失敗しました。ステータス: ${response.status}, 詳細: ${errorText}`
+        );
+      }
+
+      const data = await response.json(); // レスポンスがJSON形式であることを期待
+
+      if (!data.authUrl) {
+        throw new Error(
+          "サーバーから認証URLが提供されませんでした。サーバー側の設定を確認してください。"
+        );
+      }
 
       if (data.authUrl) {
         // 新しいウィンドウでGoogle認証を開く
@@ -318,26 +349,42 @@ class GoogleCalendarIntegration {
           "google-auth",
           "width=500,height=600,scrollbars=yes,resizable=yes,status=yes"
         );
+        // APIのオリジンを取得
+        const apiOrigin = new URL(this.apiBaseUrl).origin;
 
-        // ポップアップが閉じられたかチェック
-        const checkClosed = setInterval(() => {
-          if (authWindow.closed) {
-            clearInterval(checkClosed);
-            // 認証後の状態を確認
-            setTimeout(() => {
-              this.checkAuthStatus().then(() => {
-                this.updateUI();
-                if (this.authenticated) {
-                  this.showSuccess("Google アカウントとの連携が完了しました");
-                }
-              });
-            }, 1000);
+        // postMessage をリッスンしてポップアップからの通知を待つ
+        const handleAuthMessage = (event) => {
+          // オリジンを検証してセキュリティを確保
+          if (event.origin !== apiOrigin) {
+            // メッセージの送信元はCloud Functionsのオリジン
+            return;
           }
-        }, 1000);
+
+          if (event.data === "auth_succeeded") {
+            // サーバーから送られるメッセージ名に合わせる
+            console.log("認証成功の通知をポップアップから受信しました。");
+            // 認証後の状態を更新
+            this.checkAuthStatus().then(() => {
+              this.updateUI();
+              if (this.authenticated) {
+                this.showSuccess("Google アカウントとの連携が完了しました");
+              }
+            });
+            // リスナーを削除
+            window.removeEventListener("message", handleAuthMessage);
+          } else if (event.data === "auth_failed") {
+            // 認証失敗時のメッセージも処理
+            console.error("認証失敗の通知をポップアップから受信しました。");
+            this.showError("Googleアカウントとの連携に失敗しました。");
+            // リスナーを削除
+            window.removeEventListener("message", handleAuthMessage);
+          }
+        };
+        window.addEventListener("message", handleAuthMessage, false);
       }
     } catch (error) {
       console.error("認証開始エラー:", error);
-      this.showError("認証の開始に失敗しました");
+      this.showError(`認証の開始に失敗しました: ${error.message}`);
     }
   }
 
@@ -347,6 +394,7 @@ class GoogleCalendarIntegration {
   async signOut() {
     try {
       const response = await fetch(`${this.apiBaseUrl}/auth/logout`, {
+        // 修正: /api/auth/logout を呼び出す
         method: "POST",
         credentials: "include",
       });
@@ -393,7 +441,8 @@ class GoogleCalendarIntegration {
 
       this.updateSyncProgress(30, "Google Calendar と通信中...");
 
-      const response = await fetch(`${this.apiBaseUrl}/api/sync`, {
+      const response = await fetch(`${this.apiBaseUrl}/sync`, {
+        // 修正: /api/sync を呼び出す
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -429,19 +478,11 @@ class GoogleCalendarIntegration {
 
       // 結果の表示
       // 結果の表示 (双方向同期専用のメッセージ)
-      let message = "双方向同期が完了しました。";
-      let importedCount = 0;
-      let exportedCount = 0; // バックエンドが exportedEventsCount を返すことを期待
+      // バックエンドから返される件数を使用
+      const importedCount = result.importedCount || 0;
+      const exportedCount = result.exportedCount || 0;
 
-      if (result.importedEvents) {
-        importedCount = result.importedEvents.length;
-      }
-      // バックエンドの /api/sync が exportedEventsCount を返すように改修されている前提
-      if (result.exportedEventsCount) {
-        exportedCount = result.exportedEventsCount;
-      }
-
-      message = `双方向同期完了: ${importedCount}件インポート, ${exportedCount}件エクスポート。`;
+      const message = `双方向同期完了: ${importedCount}件インポート, ${exportedCount}件エクスポート。`;
 
       if (result.errors > 0) {
         console.warn("同期エラーの詳細:", result.details);
@@ -783,6 +824,8 @@ class GoogleCalendarIntegration {
       allDay: event.allDay || false,
       colorId: this.convertColorToGoogleCalendar(event.backgroundColor),
       location: event.extendedProps?.location || "",
+      extendedProps: event.extendedProps, // ★ バックエンドでの更新・削除に必要な googleEventId を含める
+
       source: "wedding-calendar",
       originalEvent: {
         backgroundColor: event.backgroundColor,
@@ -917,6 +960,53 @@ class GoogleCalendarIntegration {
     };
 
     return colorMap[backgroundColor.toLowerCase()] || "1";
+  }
+
+  /**
+   * リアルタイム同期の結果をローカルのイベントに反映させる
+   * @param {Array} syncResults - バックエンドからの同期結果の配列
+   */
+  updateLocalEventsWithSyncResult(syncResults) {
+    if (!this.calendarInstance || !Array.isArray(syncResults)) {
+      return;
+    }
+
+    let updated = false;
+    syncResults.forEach((result) => {
+      if (result.status !== "success" || !result.localId) {
+        return; // 失敗したか、ローカルIDがないものはスキップ
+      }
+
+      const event = this.calendarInstance.getEventById(result.localId);
+      if (!event) {
+        // removeアクションの場合はイベントが存在しないのが正常
+        if (result.action === "remove") {
+          console.log(
+            `イベント削除をGoogle Calendarに反映しました (Local ID: ${result.localId})`
+          );
+        } else {
+          console.warn(
+            `同期結果に対応するローカルイベントが見つかりません: ${result.localId}`
+          );
+        }
+        return;
+      }
+
+      // 'add' アクションの場合、新しく発行されたGoogle Event IDを保存する
+      if (result.action === "add" && result.googleEventId) {
+        console.log(
+          `新規イベントにGoogle Event IDをセット: ${event.title} -> ${result.googleEventId}`
+        );
+        event.setExtendedProp("googleEventId", result.googleEventId);
+        updated = true;
+      }
+    });
+
+    // 変更があった場合は、ローカルストレージに保存する
+    if (updated && typeof window.saveEvents === "function") {
+      console.log("Google Event IDの更新をローカルストレージに保存します。");
+      window.saveEvents();
+    }
   }
 
   /**
@@ -1083,42 +1173,6 @@ class GoogleCalendarIntegration {
     if (this.elements.autoSyncToggle) {
       this.elements.autoSyncToggle.checked = false;
     }
-  }
-
-  /**
-   * 認証コールバックの確認（URL パラメータから）
-   */
-  checkAuthCallback() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get("code");
-    const error = urlParams.get("error");
-
-    if (error) {
-      this.showError("認証がキャンセルされました");
-      // URLパラメータをクリア
-      this.clearUrlParams();
-    } else if (code) {
-      // 認証成功の場合は状態を更新
-      this.checkAuthStatus().then(() => {
-        this.updateUI();
-        if (this.authenticated) {
-          this.showSuccess("Google アカウントとの連携が完了しました");
-        }
-        // URLパラメータをクリア
-        this.clearUrlParams();
-      });
-    }
-  }
-
-  /**
-   * URLパラメータのクリア
-   */
-  clearUrlParams() {
-    const url = new URL(window.location);
-    url.searchParams.delete("code");
-    url.searchParams.delete("state");
-    url.searchParams.delete("error");
-    window.history.replaceState({}, document.title, url.pathname);
   }
 
   /**

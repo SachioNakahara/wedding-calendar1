@@ -41,6 +41,11 @@ function initializeCalendar() {
           // 土曜日のセルに明示的にクラスを追加
           arg.el.classList.add("saturday-cell");
         }
+
+        // 六曜表示を追加 (koyomi.jsの関数を呼び出す)
+        if (typeof window.addRokuyoToCell === "function") {
+          window.addRokuyoToCell(arg);
+        }
       },
 
       // 曜日ヘッダーの背景色を設定（v5対応）
@@ -86,10 +91,6 @@ function initializeCalendar() {
         // ビューがマウントされた後に曜日の色を適用
         setTimeout(() => {
           applyWeekdayColors();
-          // 六曜も更新
-          if (window.updateRokuyo) {
-            window.updateRokuyo();
-          }
         }, 100);
       },
 
@@ -98,15 +99,15 @@ function initializeCalendar() {
         // 日付が変更された後に色を適用
         setTimeout(() => {
           applyWeekdayColors();
-          // 六曜も更新
-          if (window.updateRokuyo) {
-            window.updateRokuyo();
-          }
         }, 100);
       },
     });
 
     calendar.render();
+
+    // ★追加: カレンダーの準備ができたことを他のスクリプトに通知する
+    // これにより、app-init.jsが安全にGoogle連携機能の初期化を開始できる
+    document.dispatchEvent(new CustomEvent("calendarReady"));
 
     // グローバル変数として保存
     window.weddingCalendar = calendar;
@@ -132,31 +133,6 @@ function initializeCalendar() {
   } catch (error) {
     console.error("カレンダーの初期化中にエラーが発生しました:", error);
   }
-}
-
-// イベント詳細表示
-function showEventDetails(event) {
-  alert(
-    `イベント: ${event.title}\n開始: ${event.start.toLocaleString()}\n終了: ${
-      event.end ? event.end.toLocaleString() : "未設定"
-    }`
-  );
-}
-
-// 拡張イベント詳細表示
-function showEnhancedEventDetails(event) {
-  const description = event.extendedProps.description || "説明なし";
-  const createdAt = event.extendedProps.createdAt
-    ? new Date(event.extendedProps.createdAt).toLocaleString()
-    : "不明";
-
-  alert(
-    `イベント: ${
-      event.title
-    }\n説明: ${description}\n開始: ${event.start.toLocaleString()}\n終了: ${
-      event.end ? event.end.toLocaleString() : "未設定"
-    }\n作成日時: ${createdAt}`
-  );
 }
 
 // カスタムCSSスタイルを追加する関数
@@ -656,6 +632,21 @@ function applyWeekdayColors() {
 
 // ページ読み込み時の初期化
 document.addEventListener("DOMContentLoaded", function () {
+  // --- Service Workerの登録解除処理を追加 ---
+  // アプリケーション起動時に、ブラウザに残っている古い登録をすべて解除する
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function (registrations) {
+      if (registrations.length > 0) {
+        console.log(
+          "古いService Workerの登録が見つかりました。全て解除します。"
+        );
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      }
+    });
+  }
+
   initializeCalendar();
   initializeTabs();
 
@@ -728,116 +719,4 @@ window.addEventListener("storage", function (e) {
     console.log(`ローカルストレージ更新を検出: ${e.key}`);
     setTimeout(refreshCalendar, 500); // 少し遅延を入れて確実に更新
   }
-});
-
-// サービスワーカーの登録（PWA対応）
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", function () {
-    navigator.serviceWorker.register("/sw.js").then(
-      function (registration) {
-        console.log(
-          "ServiceWorker registration successful with scope: ",
-          registration.scope
-        );
-      },
-      function (err) {
-        console.log("ServiceWorker registration failed: ", err);
-      }
-    );
-  });
-}
-
-// 六曜表示のための機能（v5対応版）
-function initializeRokuyoDisplay() {
-  // 六曜データを取得する関数
-  function getRokuyoForDate(date) {
-    // 日本の旧暦に基づく六曜の計算
-    // このロジックは簡略化されています。実際の六曜計算はより複雑です
-    const rokuyoTypes = ["大安", "赤口", "先勝", "友引", "先負", "仏滅"];
-
-    // 日付を数値化して六曜のインデックスを求める簡易アルゴリズム
-    // 本来は旧暦に基づく計算が必要ですが、ここではデモ用の簡易計算
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-
-    // 簡易計算（実際の六曜計算はより複雑な旧暦変換が必要）
-    const rokuyoIndex = (year + month + day) % 6;
-    return rokuyoTypes[rokuyoIndex];
-  }
-
-  // 六曜情報をカレンダーに追加する関数
-  function updateCalendarWithRokuyo() {
-    // カレンダーが初期化されているかチェック
-    if (!window.weddingCalendar) return;
-
-    // 少し遅延を入れてDOM更新を待つ
-    setTimeout(() => {
-      // v5のDOM構造に対応した日付セルの取得
-      const dateElements = document.querySelectorAll(".fc-daygrid-day");
-
-      dateElements.forEach((dateEl) => {
-        const dateAttr = dateEl.getAttribute("data-date");
-        if (dateAttr) {
-          const date = new Date(dateAttr + "T00:00:00"); // タイムゾーン問題を避けるため
-          const rokuyo = getRokuyoForDate(date);
-
-          // 既存の六曜表示があれば削除
-          const existingRokuyo = dateEl.querySelector(".rokuyo-label");
-          if (existingRokuyo) {
-            existingRokuyo.remove();
-          }
-
-          // 六曜表示を追加
-          const rokuyoEl = document.createElement("div");
-          rokuyoEl.className = "rokuyo-label";
-          rokuyoEl.textContent = rokuyo;
-
-          // 六曜の種類によってクラス名を変更（CSSでスタイリングするため）
-          rokuyoEl.classList.add(`rokuyo-${rokuyo}`);
-
-          // v5の構造に合わせて挿入場所を探す
-          let targetEl = dateEl.querySelector(".fc-daygrid-day-top");
-          if (!targetEl) {
-            // fc-daygrid-day-topが見つからない場合の代替
-            targetEl = dateEl.querySelector(".fc-daygrid-day-number");
-            if (targetEl) {
-              targetEl = targetEl.parentElement;
-            }
-          }
-
-          if (!targetEl) {
-            // どちらも見つからない場合は直接dateElに追加
-            targetEl = dateEl;
-          }
-
-          if (targetEl) {
-            targetEl.appendChild(rokuyoEl);
-          }
-        }
-      });
-    }, 100);
-  }
-
-  // カレンダーが初期化された後に六曜表示を開始
-  const checkCalendar = setInterval(() => {
-    if (window.weddingCalendar) {
-      clearInterval(checkCalendar);
-
-      // 初期表示
-      updateCalendarWithRokuyo();
-
-      // カレンダーのイベントリスナーに六曜更新を追加
-      window.weddingCalendar.on("datesSet", updateCalendarWithRokuyo);
-      window.weddingCalendar.on("viewDidMount", updateCalendarWithRokuyo);
-    }
-  }, 100);
-
-  // グローバル関数として公開（他の場所から呼び出せるように）
-  window.updateRokuyo = updateCalendarWithRokuyo;
-}
-
-// DOMContentLoaded時に六曜表示を初期化
-document.addEventListener("DOMContentLoaded", function () {
-  initializeRokuyoDisplay();
 });
